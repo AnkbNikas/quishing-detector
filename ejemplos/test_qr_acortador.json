@@ -1,0 +1,17 @@
+{
+  "archivo": "fixtures/qr_acortador.png",
+  "contenidos_detectados": [
+    "https://bit.ly/3xK9pQz"
+  ],
+  "analisis_urls": {
+    "https://bit.ly/3xK9pQz": {
+      "url": "https://bit.ly/3xK9pQz",
+      "dominio": "bit.ly",
+      "hallazgos": [
+        "Usa un acortador de enlaces (bit.ly) — oculta el destino final. Los QR no deberían necesitar acortar nada: el propio QR ya es la capa de indirección."
+      ],
+      "puntuacion_riesgo": 2
+    }
+  },
+  "whois": {}
+}
