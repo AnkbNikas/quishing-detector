@@ -1,0 +1,18 @@
+{
+  "archivo": "fixtures/qr_ip.png",
+  "contenidos_detectados": [
+    "http://185.23.44.109/login/verify"
+  ],
+  "analisis_urls": {
+    "http://185.23.44.109/login/verify": {
+      "url": "http://185.23.44.109/login/verify",
+      "dominio": "185.23.44.109",
+      "hallazgos": [
+        "El destino es una dirección IP (185.23.44.109) en lugar de un nombre de dominio.",
+        "Contiene términos asociados a presión/urgencia: verify."
+      ],
+      "puntuacion_riesgo": 4
+    }
+  },
+  "whois": {}
+}
