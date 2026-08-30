@@ -1,0 +1,18 @@
+{
+  "archivo": "fixtures/qr_suplantacion.png",
+  "contenidos_detectados": [
+    "https://dgt-multas-pago.es/tasa?id=88213"
+  ],
+  "analisis_urls": {
+    "https://dgt-multas-pago.es/tasa?id=88213": {
+      "url": "https://dgt-multas-pago.es/tasa?id=88213",
+      "dominio": "dgt-multas-pago.es",
+      "hallazgos": [
+        "El dominio menciona 'dgt' pero no coincide con ningún dominio oficial conocido (dgt.es, sede.dgt.gob.es). Posible suplantación de marca.",
+        "Contiene términos asociados a presión/urgencia: tasa, multa, pago."
+      ],
+      "puntuacion_riesgo": 6
+    }
+  },
+  "whois": {}
+}
