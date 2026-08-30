@@ -1,0 +1,17 @@
+{
+  "archivo": "fixtures/qr_legitimo.png",
+  "contenidos_detectados": [
+    "https://www.dgt.es/multas"
+  ],
+  "analisis_urls": {
+    "https://www.dgt.es/multas": {
+      "url": "https://www.dgt.es/multas",
+      "dominio": "www.dgt.es",
+      "hallazgos": [
+        "Contiene términos asociados a presión/urgencia: multa."
+      ],
+      "puntuacion_riesgo": 1
+    }
+  },
+  "whois": {}
+}
