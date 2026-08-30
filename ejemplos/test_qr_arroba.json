@@ -1,0 +1,19 @@
+{
+  "archivo": "fixtures/qr_arroba.png",
+  "contenidos_detectados": [
+    "https://dgt.es@pagos-seguros.top/verifica"
+  ],
+  "analisis_urls": {
+    "https://dgt.es@pagos-seguros.top/verifica": {
+      "url": "https://dgt.es@pagos-seguros.top/verifica",
+      "dominio": "pagos-seguros.top",
+      "hallazgos": [
+        "Contiene '@' en la URL — todo lo anterior al símbolo se ignora al navegar; técnica clásica para simular un dominio de confianza.",
+        "Dominio de nivel superior (.top) usado con frecuencia en campañas de phishing por su bajo coste y falta de verificación de identidad.",
+        "Contiene términos asociados a presión/urgencia: pago, verifica."
+      ],
+      "puntuacion_riesgo": 6
+    }
+  },
+  "whois": {}
+}
