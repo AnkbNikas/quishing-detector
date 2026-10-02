@@ -154,6 +154,18 @@ PALABRAS_ALERTA_POR_IDIOMA = {
         # frontera aduanera (Tulli, tulli.fi).
         "tullimaksu",
     ],
+    # Francés. Fuentes: CNRTL, Portail lexical (cnrtl.fr); Larousse,
+    # Dictionnaire de français (larousse.fr); y Le Robert, Dictionnaire
+    # (dictionnaire.lerobert.com), consultadas el 2026-09-24.
+    "fr": [
+        # douane: aduana (entrada "douane", CNRTL y Larousse).
+        "douane",
+        # impayé: no abonado, impagado (entrada "impayé", Larousse y CNRTL).
+        "impayé",
+        # pénalité: sanción, recargo por demora en el pago (entrada
+        # "pénalité", Larousse y Le Robert).
+        "pénalité",
+    ],
 }
 
 MARCAS_HABITUALMENTE_SUPLANTADAS = {

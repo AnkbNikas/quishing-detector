@@ -65,7 +65,7 @@ python3 qr_forense.py foto_qr.jpg --whois
 - 🏳️ TLDs de bajo coste habitualmente usados en phishing (.tk, .top, .xyz...)
 - 🏦 Suplantación de marcas habituales (DGT, Correos, bancos, mensajería...) — lista ampliable en el propio script
 - 🕓 Antigüedad del dominio vía WHOIS (opcional, requiere internet)
-- ⚠️ Términos de presión/urgencia en la URL (en español y, de momento, en checo, danés, alemán, estonio y finés), incluso si están ocultos tras un escape porcentual en la ruta o escritos sin sus diacríticos
+- ⚠️ Términos de presión/urgencia en la URL (en español y, de momento, en checo, danés, alemán, estonio, finés y francés), incluso si están ocultos tras un escape porcentual en la ruta o escritos sin sus diacríticos
 - 💣 Esquemas peligrosos (`javascript:`, `data:`, `vbscript:`, `file:`, `blob:`, `intent:`) que ejecutan código o cargan contenido arbitrario — riesgo ALTO directo
 - 🔓 `http://` sin cifrar, cuando el contenido original ya traía ese esquema (no se puntúa si lo añade el propio script, ni si el destino ya es una IP)
 
