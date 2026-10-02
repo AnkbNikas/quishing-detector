@@ -166,6 +166,18 @@ PALABRAS_ALERTA_POR_IDIOMA = {
         # "pénalité", Larousse y Le Robert).
         "pénalité",
     ],
+    # Croata. Fuente: Hrvatski jezični portal (hjp.znanje.hr), consultada el
+    # 2026-09-24. Ninguna de estas tres palabras lleva diacrítico en su
+    # grafía habitual.
+    "hr": [
+        # blokiran: bloqueado (entrada "blokirati").
+        "blokiran",
+        # kazna: multa, sanción económica impuesta por una infracción
+        # (entrada "kazna").
+        "kazna",
+        # ovrha: ejecución forzosa de una deuda, embargo (entrada "ovrha").
+        "ovrha",
+    ],
 }
 
 MARCAS_HABITUALMENTE_SUPLANTADAS = {
