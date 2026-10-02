@@ -316,6 +316,20 @@ PALABRAS_ALERTA_POR_IDIOMA = {
         # vamala: vamală, aduanero (entrada "vamal").
         "vamală",
     ],
+    # Eslovaco. Fuente: Slov-Lex, sistema de información jurídica de
+    # Eslovaquia (slov-lex.sk), consultada el 2026-09-24. El portal del
+    # diccionario JULS (slovnik.juls.savba.sk) no respondió con una entrada,
+    # así que se cita la fuente jurídica nacional en su lugar. Solo
+    # "exekúcia" lleva diacrítico en su grafía habitual.
+    "sk": [
+        # exekucia: exekúcia, procedimiento judicial de ejecución forzosa de
+        # una deuda (Ley n.º 233/1995 Z. z., Exekučný poriadok, slov-lex.sk).
+        "exekúcia",
+        # nedoplatok: diferencia positiva entre lo adeudado y lo ya abonado;
+        # importe pendiente de pago, usado en materia tributaria (tesauro
+        # jurídico de slov-lex.sk, término "daňový nedoplatok").
+        "nedoplatok",
+    ],
 }
 
 MARCAS_HABITUALMENTE_SUPLANTADAS = {
