@@ -117,6 +117,22 @@ PALABRAS_ALERTA_POR_IDIOMA = {
         # zollgebuhr: la misma palabra, con la diéresis simplemente omitida.
         "zollgebuhr",
     ],
+    # Estonio. Fuente: Eesti keele seletav sõnaraamat (EKSS) 2009, Eesti Keele
+    # Instituut (arhiiv.eki.ee/dict/ekss), consultada el 2026-09-24. Ninguna
+    # de estas cinco palabras lleva diacrítico en su grafía habitual.
+    "et": [
+        # blokeeritud: bloqueado (entrada "blokeeritud").
+        "blokeeritud",
+        # maksmata: impagado, sin pagar (forma abesiva de "maksma" dada en la
+        # entrada "maksma").
+        "maksmata",
+        # tollimaks: arancel, tasa aduanera (entrada "tollimaks").
+        "tollimaks",
+        # trahv: multa (entrada "trahv").
+        "trahv",
+        # viivis: recargo por demora en el pago (entrada "viivis").
+        "viivis",
+    ],
 }
 
 MARCAS_HABITUALMENTE_SUPLANTADAS = {
