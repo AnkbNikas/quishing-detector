@@ -569,6 +569,35 @@ class TestPalabrasDeUrgenciaEnCroata(unittest.TestCase):
         )
 
 
+class TestPalabrasDeUrgenciaEnHungaro(unittest.TestCase):
+    """La comprobación 8 también busca las palabras de urgencia del bloque
+    húngaro de PALABRAS_ALERTA_POR_IDIOMA, plegando diacríticos en ambos
+    lados de la comparación, para detectar la palabra tanto si el QR la
+    lleva con su diacrítico como si lo pierde al escribirla (p. ej. en una
+    URL sin tildes)."""
+
+    def test_palabra_hungara_con_diacritico_se_detecta(self):
+        resultado = qr_forense.analizar_url("https://e.test/ertesites-bírság")
+        self.assertEqual(
+            resultado["hallazgos"],
+            ["Contiene términos asociados a presión/urgencia: bírság."],
+        )
+
+    def test_palabra_hungara_sin_diacritico_tambien_se_detecta(self):
+        resultado = qr_forense.analizar_url("https://e.test/ertesites-birsag")
+        self.assertEqual(
+            resultado["hallazgos"],
+            ["Contiene términos asociados a presión/urgencia: bírság."],
+        )
+
+    def test_palabra_parecida_no_coincide(self):
+        resultado = qr_forense.analizar_url("https://e.test/birosagi-ugy")
+        self.assertEqual(
+            resultado["hallazgos"],
+            ["No se han detectado patrones sospechosos estructurales en la URL."],
+        )
+
+
 class TestDecodificarQrSinOpencv(unittest.TestCase):
     """decodificar_qr debe fallar con un error claro si falta OpenCV, en
     lugar de impedir importar el módulo cuando no está instalado."""

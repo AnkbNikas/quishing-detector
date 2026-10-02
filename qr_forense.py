@@ -178,6 +178,19 @@ PALABRAS_ALERTA_POR_IDIOMA = {
         # ovrha: ejecución forzosa de una deuda, embargo (entrada "ovrha").
         "ovrha",
     ],
+    # Húngaro. Fuente: A magyar nyelv értelmező szótára, vía Arcanum
+    # (arcanum.com) y WikiSzótár (wikiszotar.hu), consultada el 2026-09-24.
+    "hu": [
+        # bírság: multa o sanción económica (entrada "bírság").
+        "bírság",
+        # felszólítás: requerimiento o aviso oficial para que alguien haga
+        # algo (entrada "felszólítás", acepción 2).
+        "felszólítás",
+        # hátralék: atraso o saldo pendiente de pago (entrada "hátralék").
+        "hátralék",
+        # vámdíj: arancel aduanero (entrada "vámdíj").
+        "vámdíj",
+    ],
 }
 
 MARCAS_HABITUALMENTE_SUPLANTADAS = {
