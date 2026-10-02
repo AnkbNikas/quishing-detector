@@ -343,6 +343,27 @@ class TestEsquemaSinCifrar(unittest.TestCase):
         self.assertEqual(resultado["puntuacion_riesgo"], 3)
 
 
+class TestCredencialesEnLaUrl(unittest.TestCase):
+    """'usuario:contraseña@' suma +1, independiente y además de los +4 del
+    truco del '@' (comprobación 1): son dos hallazgos distintos sobre el
+    mismo trozo de URL."""
+
+    def test_usuario_y_contrasena_suman_los_dos_hallazgos(self):
+        resultado = qr_forense.analizar_url("https://usuario:1234@evil.com/")
+        self.assertEqual(resultado["puntuacion_riesgo"], 5)
+        self.assertEqual(len(resultado["hallazgos"]), 2)
+        self.assertIn("@", resultado["hallazgos"][0])
+        self.assertIn("credenciales", resultado["hallazgos"][1])
+
+    def test_arroba_sin_dos_puntos_no_genera_el_hallazgo_de_credenciales(self):
+        resultado = qr_forense.analizar_url("https://dgt.es@pagos-seguros.top/verifica")
+        self.assertFalse(any("credenciales" in h for h in resultado["hallazgos"]))
+
+    def test_sin_arroba_no_genera_ningun_hallazgo_de_credenciales(self):
+        resultado = qr_forense.analizar_url("https://dgt.es/tramite")
+        self.assertFalse(any("credenciales" in h for h in resultado["hallazgos"]))
+
+
 class TestDecodificarQrSinOpencv(unittest.TestCase):
     """decodificar_qr debe fallar con un error claro si falta OpenCV, en
     lugar de impedir importar el módulo cuando no está instalado."""

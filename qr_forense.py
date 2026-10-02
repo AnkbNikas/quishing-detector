@@ -233,6 +233,16 @@ def analizar_url(url: str):
                          "técnica clásica para simular un dominio de confianza.")
         puntuacion += 4
 
+    # 11. Credenciales (usuario:contraseña) delante del host. Es
+    # independiente de la comprobación 1 y se suma a ella: la 1 puntúa el
+    # truco de navegación del '@' en sí, y esta puntúa específicamente que
+    # la URL expone un usuario y una contraseña en texto plano.
+    autoridad_antes_del_host = partes.netloc.rsplit("@", 1)[0] if "@" in partes.netloc else ""
+    if ":" in autoridad_antes_del_host:
+        hallazgos.append("Incluye credenciales (usuario:contraseña) en texto plano en la propia URL — "
+                         "un sitio legítimo nunca las pide así.")
+        puntuacion += 1
+
     # 2. IP en vez de dominio
     es_ip_en_puntos = bool(re.match(r"^\d{1,3}(\.\d{1,3}){3}$", host))
     if es_ip_en_puntos:

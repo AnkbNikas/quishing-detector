@@ -57,6 +57,7 @@ python3 qr_forense.py foto_qr.jpg --whois
 ## Qué comprueba
 
 - 🔗 Truco del símbolo `@` en la URL
+- 🔑 Credenciales (`usuario:contraseña@`) en texto plano en la propia URL — independiente del truco del `@` y se suma a él
 - ↩️ `\` antes del host en vez de `/` (p. ej. `evil.top\@dgt.es`), el mismo truco que el del `@` pero a través de cómo lo corrigen los navegadores
 - 🌐 IP en lugar de dominio, incluida una IP disfrazada en decimal, hexadecimal, octal o como literal IPv6
 - 🔤 Punycode / posibles ataques homógrafo, incluyendo homógrafos en Unicode (cirílico, ancho completo...) una vez convertidos a su forma Punycode
