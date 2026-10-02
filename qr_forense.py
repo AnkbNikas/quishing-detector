@@ -222,6 +222,30 @@ PALABRAS_ALERTA_POR_IDIOMA = {
         # una deuda (vmi.lt/evmi/5257).
         "užblokuota",
     ],
+    # Neerlandés. Fuentes: Woorden.org (woorden.org) y Van Dale Groot
+    # woordenboek der Nederlandse taal, vía Ensie (ensie.nl), consultadas el
+    # 2026-09-24. Ninguna de estas seis palabras lleva diacrítico en su
+    # grafía habitual.
+    "nl": [
+        # aanmaning: requerimiento formal de pago, aviso de que una factura
+        # sigue sin abonarse (entrada "aanmaning", Woorden.org y Ensie/Van
+        # Dale).
+        "aanmaning",
+        # achterstallig: atrasado, con el pago pendiente o fuera de plazo
+        # (entrada "achterstallig", Woorden.org).
+        "achterstallig",
+        # boete: multa, sanción económica (entrada "boete", Woorden.org).
+        "boete",
+        # geblokkeerd: bloqueado, p. ej. una cuenta o un servicio (entrada
+        # "geblokkeerd", Woorden.org).
+        "geblokkeerd",
+        # incassokosten: gastos de gestión de cobro por el impago de una
+        # factura (entrada "incassokosten", Woorden.org).
+        "incassokosten",
+        # naheffing: liquidación o recargo tributario complementario,
+        # girado a posteriori (entrada "naheffing", Woorden.org).
+        "naheffing",
+    ],
 }
 
 MARCAS_HABITUALMENTE_SUPLANTADAS = {

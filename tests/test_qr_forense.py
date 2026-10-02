@@ -656,6 +656,27 @@ class TestPalabrasDeUrgenciaEnLituano(unittest.TestCase):
         )
 
 
+class TestPalabrasDeUrgenciaEnNeerlandes(unittest.TestCase):
+    """La comprobación 8 también busca las palabras de urgencia del bloque
+    neerlandés de PALABRAS_ALERTA_POR_IDIOMA. Ninguna de esas seis palabras
+    lleva diacrítico en su grafía habitual, así que no hace falta una
+    variante plegada para detectarlas."""
+
+    def test_palabra_neerlandesa_se_detecta(self):
+        resultado = qr_forense.analizar_url("https://e.test/betaal-uw-aanmaning")
+        self.assertEqual(
+            resultado["hallazgos"],
+            ["Contiene términos asociados a presión/urgencia: aanmaning."],
+        )
+
+    def test_palabra_parecida_no_coincide(self):
+        resultado = qr_forense.analizar_url("https://e.test/vriendelijke-aanmaan-herinnering")
+        self.assertEqual(
+            resultado["hallazgos"],
+            ["No se han detectado patrones sospechosos estructurales en la URL."],
+        )
+
+
 class TestDecodificarQrSinOpencv(unittest.TestCase):
     """decodificar_qr debe fallar con un error claro si falta OpenCV, en
     lugar de impedir importar el módulo cuando no está instalado."""
