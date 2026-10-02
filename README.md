@@ -58,7 +58,7 @@ python3 qr_forense.py foto_qr.jpg --whois
 
 - 🔗 Truco del símbolo `@` en la URL
 - ↩️ `\` antes del host en vez de `/` (p. ej. `evil.top\@dgt.es`), el mismo truco que el del `@` pero a través de cómo lo corrigen los navegadores
-- 🌐 IP en lugar de dominio
+- 🌐 IP en lugar de dominio, incluida una IP disfrazada en decimal, hexadecimal, octal o como literal IPv6
 - 🔤 Punycode / posibles ataques homógrafo, incluyendo homógrafos en Unicode (cirílico, ancho completo...) una vez convertidos a su forma Punycode
 - ✂️ Acortadores de enlaces
 - 🏳️ TLDs de bajo coste habitualmente usados en phishing (.tk, .top, .xyz...)

@@ -250,6 +250,46 @@ class TestHostUnicodeConvertidoAPunycode(unittest.TestCase):
         self.assertEqual(resultado["dominio"], "a..b.com")
 
 
+class TestIpDisfrazada(unittest.TestCase):
+    """Una IP escrita en decimal, hexadecimal, octal o como literal IPv6
+    debe puntuarse igual que la IP en puntos de la comprobación 2 (+3), sin
+    sumarse a ella: una misma IP solo puede tener una de las dos formas."""
+
+    def test_decimal(self):
+        resultado = qr_forense.analizar_url("http://2130706433/")
+        self.assertEqual(resultado["dominio"], "2130706433")
+        self.assertEqual(resultado["puntuacion_riesgo"], 3)
+        self.assertIn("127.0.0.1", resultado["hallazgos"][0])
+
+    def test_hexadecimal(self):
+        resultado = qr_forense.analizar_url("http://0x7f000001/")
+        self.assertEqual(resultado["puntuacion_riesgo"], 3)
+        self.assertIn("127.0.0.1", resultado["hallazgos"][0])
+
+    def test_octal(self):
+        resultado = qr_forense.analizar_url("http://0177.0.0.01/")
+        self.assertEqual(resultado["puntuacion_riesgo"], 3)
+        self.assertIn("127.0.0.1", resultado["hallazgos"][0])
+
+    def test_ipv6_literal(self):
+        resultado = qr_forense.analizar_url("http://[::1]/")
+        self.assertEqual(resultado["dominio"], "::1")
+        self.assertEqual(resultado["puntuacion_riesgo"], 3)
+        self.assertIn("IPv6", resultado["hallazgos"][0])
+
+    def test_ip_en_puntos_no_se_duplica(self):
+        resultado = qr_forense.analizar_url("http://192.168.1.1/")
+        self.assertEqual(resultado["puntuacion_riesgo"], 3)
+        self.assertEqual(len(resultado["hallazgos"]), 1)
+
+    def test_dominio_normal_no_se_marca(self):
+        resultado = qr_forense.analizar_url("https://dgt.es/tramite")
+        self.assertEqual(
+            resultado["hallazgos"],
+            ["No se han detectado patrones sospechosos estructurales en la URL."],
+        )
+
+
 class TestDecodificarQrSinOpencv(unittest.TestCase):
     """decodificar_qr debe fallar con un error claro si falta OpenCV, en
     lugar de impedir importar el módulo cuando no está instalado."""

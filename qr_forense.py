@@ -53,6 +53,43 @@ MARCAS_HABITUALMENTE_SUPLANTADAS = {
 }
 
 
+def es_ip_decimal(host: str) -> bool:
+    """Un entero de 32 bits sin signo escrito en decimal (p. ej. 2130706433,
+    equivalente a 127.0.0.1)."""
+    return bool(re.match(r"^\d+$", host)) and int(host) <= 0xFFFFFFFF
+
+
+def es_ip_hexadecimal(host: str) -> bool:
+    """Un entero de 32 bits sin signo escrito en hexadecimal con el prefijo
+    '0x' (p. ej. 0x7f000001, equivalente a 127.0.0.1)."""
+    return bool(re.match(r"^0[xX][0-9a-fA-F]+$", host)) and int(host, 16) <= 0xFFFFFFFF
+
+
+def es_ip_octal(host: str) -> bool:
+    """Cuatro octetos en octal, cada uno con un cero inicial (p. ej.
+    0177.0.0.01, equivalente a 127.0.0.1). No se usa para los octetos
+    normales de uno a tres dígitos sin cero inicial: esos ya los detecta la
+    comprobación 2 en decimal."""
+    octetos = host.split(".")
+    return len(octetos) == 4 and all(re.match(r"^0[0-7]*$", octeto) for octeto in octetos)
+
+
+def es_ipv6_literal(host: str) -> bool:
+    """urlsplit() devuelve el host de una URL con una dirección IPv6 entre
+    corchetes (p. ej. http://[::1]/) sin los corchetes, así que un ':' en
+    el host solo puede significar eso."""
+    return ":" in host
+
+
+def ip_disfrazada_a_puntos(host: str) -> str:
+    """Convierte una IP decimal, hexadecimal u octal disfrazada a su forma
+    habitual con puntos, para mostrarla en el hallazgo."""
+    if es_ip_octal(host):
+        return ".".join(str(int(octeto, 8)) for octeto in host.split("."))
+    valor = int(host, 16) if es_ip_hexadecimal(host) else int(host)
+    return ".".join(str((valor >> desplazamiento) & 0xFF) for desplazamiento in (24, 16, 8, 0))
+
+
 def decodificar_qr(path: Path):
     try:
         import cv2
@@ -168,8 +205,24 @@ def analizar_url(url: str):
         puntuacion += 4
 
     # 2. IP en vez de dominio
-    if re.match(r"^\d{1,3}(\.\d{1,3}){3}$", host):
+    es_ip_en_puntos = bool(re.match(r"^\d{1,3}(\.\d{1,3}){3}$", host))
+    if es_ip_en_puntos:
         hallazgos.append(f"El destino es una dirección IP ({host}) en lugar de un nombre de dominio.")
+        puntuacion += 3
+
+    # 9. IP disfrazada en decimal, hexadecimal, octal o como literal IPv6,
+    # para no dejar sin puntuar las formas alternativas de escribir una IP
+    # que evitan la comprobación 2. No se suma a la 2: una IP solo puede
+    # tener una de las dos formas (en puntos o disfrazada), nunca ambas.
+    es_ip_disfrazada = not es_ip_en_puntos and (
+        es_ip_decimal(host) or es_ip_hexadecimal(host) or es_ip_octal(host) or es_ipv6_literal(host)
+    )
+    if es_ip_disfrazada:
+        if es_ipv6_literal(host):
+            hallazgos.append(f"El destino es una dirección IPv6 ({host}) en lugar de un nombre de dominio.")
+        else:
+            hallazgos.append(f"El destino es una IP disfrazada como '{host}' — equivale a "
+                             f"{ip_disfrazada_a_puntos(host)} en lugar de un nombre de dominio.")
         puntuacion += 3
 
     # 3. Punycode / homógrafos
