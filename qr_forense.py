@@ -795,6 +795,25 @@ def analizar_url(url: str):
     except UnicodeError:
         pass
 
+    # El plegado que aplica el códec "idna" (vía nameprep, que normaliza a
+    # NFKC) puede convertir un carácter de ancho completo en su forma ASCII
+    # prohibida en un host — p. ej. '＃' (U+FF03, signo de número de ancho
+    # completo) se pliega a '#', e igual ocurre con '＠', '／' y '？'. La
+    # comprobación de caracteres prohibidos de más arriba corre sobre el host
+    # en Unicode, antes de esta conversión, así que no detecta estos casos;
+    # sin repetirla aquí, un host así se analizaría como si el carácter
+    # prohibido formara parte legítima de él (p. ej. "evil.com#" con
+    # puntuación 0) en vez de dar el mismo hallazgo de URL malformada que ya
+    # se da cuando el carácter prohibido aparece antes de la conversión.
+    if host_contiene_caracter_prohibido(host):
+        return {
+            "url": url,
+            "dominio": "",
+            "hallazgos": ["URL malformada o no analizable: el host decodificado contiene un "
+                         "carácter que ningún navegador acepta en un host."],
+            "puntuacion_riesgo": 3,
+        }
+
     if contiene_escapes_en_host:
         hallazgos.append("El host contenía secuencias de escape porcentual — se ha decodificado "
                          f"a «{host}» antes de analizarlo, igual que hacen los navegadores.")

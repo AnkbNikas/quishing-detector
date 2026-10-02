@@ -126,6 +126,10 @@ class TestRobustezEntradaMalformada(unittest.TestCase):
             "http:evil.top/login",
             "http:",
             "http:///",
+            "https://evil.com＃/",
+            "https://evil.com＠/",
+            "https://evil.com／/",
+            "https://evil.com？/",
         ]
         for entrada in entradas_malformadas:
             with self.subTest(entrada=entrada):
@@ -335,6 +339,60 @@ class TestHostConCaracterProhibido(unittest.TestCase):
         self.assertEqual(
             resultado["hallazgos"],
             ["No se han detectado patrones sospechosos estructurales en la URL."],
+        )
+
+
+class TestCaracterProhibidoTrasLaConversionIdna(unittest.TestCase):
+    """Un carácter de ancho completo ('＃', '＠', '／', '？') no está en
+    CARACTERES_PROHIBIDOS_EN_HOST, que solo contiene sus formas ASCII, así
+    que la comprobación de más arriba no lo detecta en el host todavía en
+    Unicode. Pero el códec "idna" pliega estos caracteres a su forma ASCII
+    (vía nameprep, que normaliza a NFKC) al convertir el host a Punycode —
+    "evil.com＃" se convierte en "evil.com#" — y esa forma plegada sí es uno
+    de los caracteres prohibidos. Repetir la comprobación después de esa
+    conversión evita que el host se analice con, p. ej., "#" como si
+    formara parte legítima de él, y da el mismo hallazgo de URL malformada
+    (+3) que ya se da cuando el carácter prohibido aparece antes de la
+    conversión."""
+
+    def test_signo_de_numero_de_ancho_completo_tras_el_host(self):
+        resultado = qr_forense.analizar_url("https://evil.com＃/")
+        self.assertEqual(resultado["dominio"], "")
+        self.assertEqual(resultado["puntuacion_riesgo"], 3)
+        self.assertEqual(
+            resultado["hallazgos"],
+            ["URL malformada o no analizable: el host decodificado contiene un "
+             "carácter que ningún navegador acepta en un host."],
+        )
+
+    def test_arroba_de_ancho_completo_tras_el_host(self):
+        resultado = qr_forense.analizar_url("https://evil.com＠/")
+        self.assertEqual(resultado["dominio"], "")
+        self.assertEqual(resultado["puntuacion_riesgo"], 3)
+        self.assertEqual(
+            resultado["hallazgos"],
+            ["URL malformada o no analizable: el host decodificado contiene un "
+             "carácter que ningún navegador acepta en un host."],
+        )
+
+    def test_barra_de_ancho_completo_tras_el_host(self):
+        resultado = qr_forense.analizar_url("https://evil.com／/")
+        self.assertEqual(resultado["dominio"], "")
+        self.assertEqual(resultado["puntuacion_riesgo"], 3)
+        self.assertEqual(
+            resultado["hallazgos"],
+            ["URL malformada o no analizable: el host decodificado contiene un "
+             "carácter que ningún navegador acepta en un host."],
+        )
+
+    def test_interrogacion_de_ancho_completo_tras_el_host(self):
+        resultado = qr_forense.analizar_url("https://evil.com？/")
+        self.assertEqual(resultado["dominio"], "")
+        self.assertEqual(resultado["puntuacion_riesgo"], 3)
+        self.assertEqual(
+            resultado["hallazgos"],
+            ["URL malformada o no analizable: el host decodificado contiene un "
+             "carácter que ningún navegador acepta en un host."],
         )
 
 
