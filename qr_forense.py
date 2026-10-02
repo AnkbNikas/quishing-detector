@@ -297,6 +297,25 @@ PALABRAS_ALERTA_POR_IDIOMA = {
         # (entrada "bloqueado").
         "bloqueado",
     ],
+    # Rumano. Fuente: dexonline (dexonline.ro), consultada el 2026-09-24.
+    # "neplată", "somație" y "vamală" llevan diacrítico en su grafía
+    # habitual; "blocat" y "penalizare" no.
+    "ro": [
+        # blocat: bloqueado, p. ej. dinero o mercancías que no pueden
+        # circular (entrada "blocat").
+        "blocat",
+        # neplata: neplată, impago de una obligación financiera dentro de
+        # plazo (entrada "neplată").
+        "neplată",
+        # penalizare: sanción, recargo por demora en el pago (entrada
+        # "penalizare", acepción 3).
+        "penalizare",
+        # somatie: somație, requerimiento formal de pago previo al embargo
+        # (entrada "somație", sentido jurídico).
+        "somație",
+        # vamala: vamală, aduanero (entrada "vamal").
+        "vamală",
+    ],
 }
 
 MARCAS_HABITUALMENTE_SUPLANTADAS = {
