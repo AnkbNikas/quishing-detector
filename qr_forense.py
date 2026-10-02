@@ -79,6 +79,44 @@ PALABRAS_ALERTA_POR_IDIOMA = {
         # ubetalt: impagado (entrada "ubetalt", ordnet.dk/ddo).
         "ubetalt",
     ],
+    # Alemán. Fuente: DWDS (Digitales Wörterbuch der deutschen Sprache),
+    # dwds.de, consultada el 2026-09-24.
+    "de": [
+        # bussgeld: Bußgeld, multa administrativa (ß→ss; entrada "Bußgeld",
+        # DWDS).
+        "bussgeld",
+        # gesperrt: bloqueado, p. ej. una cuenta o una tarjeta bancaria
+        # (entrada "gesperrt", DWDS).
+        "gesperrt",
+        # mahngebuehr: Mahngebühr, recargo por un aviso oficial de impago
+        # (entrada "Mahngebühr", DWDS), con la "ü" escrita según la grafía
+        # alemana "ue".
+        "mahngebuehr",
+        # mahngebuhr: la misma palabra, con la diéresis simplemente omitida
+        # en vez de sustituida por "ue" — ninguna de las dos grafías se
+        # reduce a la otra al plegar diacríticos, así que se incluyen ambas.
+        "mahngebuhr",
+        # saeumniszuschlag: Säumniszuschlag, recargo por demora en el pago
+        # de un impuesto (entrada "Säumniszuschlag", DWDS), con la "ä"
+        # escrita según la grafía alemana "ae".
+        "saeumniszuschlag",
+        # saumniszuschlag: la misma palabra, con la diéresis simplemente
+        # omitida en vez de sustituida por "ae".
+        "saumniszuschlag",
+        # zahlungsruckstand: Zahlungsrückstand, atraso en el pago (entrada
+        # "Zahlungsrückstand", DWDS), con la diéresis de la "ü" omitida.
+        "zahlungsruckstand",
+        # zahlungsrueckstand: la misma palabra, con la "ü" escrita según la
+        # grafía alemana "ue".
+        "zahlungsrueckstand",
+        # zahlungsverzug: mora en el pago (entrada "Zahlungsverzug", DWDS).
+        "zahlungsverzug",
+        # zollgebuehr: Zollgebühr, tasa aduanera (entrada "Zollgebühr",
+        # DWDS), con la "ü" escrita según la grafía alemana "ue".
+        "zollgebuehr",
+        # zollgebuhr: la misma palabra, con la diéresis simplemente omitida.
+        "zollgebuhr",
+    ],
 }
 
 MARCAS_HABITUALMENTE_SUPLANTADAS = {
