@@ -207,6 +207,21 @@ PALABRAS_ALERTA_POR_IDIOMA = {
         # morosità: morosidad, impago (entrada "morosità").
         "morosità",
     ],
+    # Lituano. Fuentes: Valstybinė mokesčių inspekcija (vmi.lt) y Lietuvos
+    # Respublikos finansų ministerija (finmin.lrv.lt), consultadas el
+    # 2026-09-24. Solo "užblokuota" lleva diacrítico en su grafía habitual.
+    "lt": [
+        # delspinigiai: recargo financiero por un impuesto no pagado o pagado
+        # con retraso, a un tipo fijado por el ministro de Hacienda (vmi.lt y
+        # finmin.lrv.lt, entradas sobre delspinigiai).
+        "delspinigiai",
+        # nuobauda: sanción impuesta por una infracción administrativa o penal
+        # (vmi.lt, baudos por infracciones administrativas).
+        "nuobauda",
+        # užblokuota: cuenta bloqueada por la inspección tributaria al cobrar
+        # una deuda (vmi.lt/evmi/5257).
+        "užblokuota",
+    ],
 }
 
 MARCAS_HABITUALMENTE_SUPLANTADAS = {
