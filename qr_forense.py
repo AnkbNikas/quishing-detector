@@ -22,8 +22,6 @@ import urllib.parse
 from datetime import datetime, timezone
 from pathlib import Path
 
-import cv2
-
 VERSION = "1.0.0"
 
 ACORTADORES = {
@@ -56,6 +54,14 @@ MARCAS_HABITUALMENTE_SUPLANTADAS = {
 
 
 def decodificar_qr(path: Path):
+    try:
+        import cv2
+    except ImportError as exc:
+        raise RuntimeError(
+            "OpenCV (paquete 'opencv-python') no está instalado. "
+            "Instálalo con: pip install opencv-python"
+        ) from exc
+
     img = cv2.imread(str(path))
     if img is None:
         raise ValueError("No se ha podido leer la imagen. Formatos soportados: JPG, PNG, BMP.")

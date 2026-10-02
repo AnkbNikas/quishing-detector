@@ -65,6 +65,16 @@ python3 qr_forense.py foto_qr.jpg --whois
 - 🕓 Antigüedad del dominio vía WHOIS (opcional, requiere internet)
 - ⚠️ Términos de presión/urgencia en la URL
 
+## Tests
+
+Pruebas unitarias con `unittest` (librería estándar, sin dependencias nuevas). Fijan la puntuación y los hallazgos de los cinco casos de `ejemplos/` y los umbrales de `clasificar_riesgo`:
+
+```bash
+python3 -m unittest discover -s tests
+```
+
+No hace falta tener OpenCV instalado para ejecutarlas — `decodificar_qr` solo importa `cv2` al decodificar una imagen real.
+
 ## ⚖️ Límites — lectura obligatoria
 
 - Es un análisis **heurístico y estructural**, no consulta listas negras de phishing en tiempo real ni analiza el contenido real de la web de destino.
