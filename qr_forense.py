@@ -60,6 +60,25 @@ PALABRAS_ALERTA_POR_IDIOMA = {
         # zablokovaný: bloqueado (entrada "zablokovaný").
         "zablokovaný",
     ],
+    # Danés. Fuentes: Den Danske Ordbog, Det Danske Sprog- og
+    # Litteraturselskab (ordnet.dk/ddo), consultada el 2026-09-24; y
+    # Forbrugerombudsmanden, forbrug.dk, "Betalingsfrister - regninger",
+    # consultada el 2026-09-24.
+    "da": [
+        # betalingsfrist: plazo de pago de una factura (fuente
+        # Forbrugerombudsmanden anterior).
+        "betalingsfrist",
+        # forfaldsdato: fecha de vencimiento de una factura (misma fuente).
+        "forfaldsdato",
+        # rykkergebyr: recargo por una carta de aviso de pago (entrada
+        # "rykkergebyr", ordnet.dk/ddo).
+        "rykkergebyr",
+        # spærret: bloqueado, p. ej. una cuenta o una tarjeta (entrada
+        # "spærre", ordnet.dk/ddo).
+        "spærret",
+        # ubetalt: impagado (entrada "ubetalt", ordnet.dk/ddo).
+        "ubetalt",
+    ],
 }
 
 MARCAS_HABITUALMENTE_SUPLANTADAS = {
