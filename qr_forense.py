@@ -286,6 +286,17 @@ PALABRAS_ALERTA_POR_IDIOMA = {
         # "zaległość").
         "zaległość",
     ],
+    # Portugués. Fuente: Dicionário Priberam da Língua Portuguesa
+    # (dicionario.priberam.org), consultada el 2026-09-24. Solo "alfândega"
+    # lleva diacrítico en su grafía habitual.
+    "pt": [
+        # alfandega: alfândega, aduana (entrada "alfândega", sentidos 1-3,
+        # la oficina, el edificio y los derechos de aduana).
+        "alfândega",
+        # bloqueado: bloqueado, con alguna obstrucción o restricción
+        # (entrada "bloqueado").
+        "bloqueado",
+    ],
 }
 
 MARCAS_HABITUALMENTE_SUPLANTADAS = {
