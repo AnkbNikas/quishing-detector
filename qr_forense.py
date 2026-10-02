@@ -191,6 +191,22 @@ PALABRAS_ALERTA_POR_IDIOMA = {
         # vámdíj: arancel aduanero (entrada "vámdíj").
         "vámdíj",
     ],
+    # Italiano. Fuente: Treccani, Vocabolario on line (treccani.it/vocabolario),
+    # consultada el 2026-09-24. Solo "morosità" lleva diacrítico en su grafía
+    # habitual.
+    "it": [
+        # bloccato: bloqueado, p. ej. una cuenta o un depósito bancario
+        # (entrada "bloccare").
+        "bloccato",
+        # dogana: aduana (entrada "dogana").
+        "dogana",
+        # ingiunzione: requerimiento, orden de un órgano judicial o
+        # administrativo para cumplir una obligación, incluidas las órdenes
+        # de pago (entrada "ingiunzione").
+        "ingiunzione",
+        # morosità: morosidad, impago (entrada "morosità").
+        "morosità",
+    ],
 }
 
 MARCAS_HABITUALMENTE_SUPLANTADAS = {
