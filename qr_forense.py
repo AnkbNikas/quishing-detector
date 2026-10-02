@@ -345,6 +345,31 @@ PALABRAS_ALERTA_POR_IDIOMA = {
         # prava).
         "izvršba",
     ],
+    # Sueco. Fuentes: Konsumentverket, "Regler för fakturor och
+    # påminnelser" (konsumentverket.se), y Kronofogden, "Vad är inkasso?"
+    # (kronofogden.se); Svenska Akademiens ordböcker (svenska.se/so) junto
+    # con Konsumenternas (konsumenternas.se); y Tullverket (tullverket.se),
+    # consultadas el 2026-09-24.
+    "sv": [
+        # betalningskrav: requerimiento de pago posterior a un aviso
+        # impagado, hasta el "betalningsföreläggande" de Kronofogden
+        # (Konsumentverket y Kronofogden).
+        "betalningskrav",
+        # betalningspåminnelse: aviso de pago enviado cuando una factura no
+        # se abona a tiempo, con un recargo ("påminnelseavgift")
+        # (Konsumentverket).
+        "betalningspåminnelse",
+        # förfallodag: fecha límite en la que la empresa debe haber
+        # recibido el pago (Konsumentverket).
+        "förfallodag",
+        # spärrat: bloqueado, p. ej. una cuenta bancaria o una tarjeta
+        # (entrada "spärra", Svenska Akademiens ordböcker, y
+        # Konsumenternas).
+        "spärrat",
+        # tullavgift: arancel aduanero aplicado según el código arancelario
+        # de la mercancía (Tullverket).
+        "tullavgift",
+    ],
 }
 
 MARCAS_HABITUALMENTE_SUPLANTADAS = {
