@@ -59,7 +59,7 @@ python3 qr_forense.py foto_qr.jpg --whois
 - 🔗 Truco del símbolo `@` en la URL
 - 🔑 Credenciales (`usuario:contraseña@`) en texto plano en la propia URL — independiente del truco del `@` y se suma a él
 - ↩️ `\` antes del host en vez de `/` (p. ej. `evil.top\@dgt.es`), el mismo truco que el del `@` pero a través de cómo lo corrigen los navegadores
-- 🌐 IP en lugar de dominio, incluida una IP disfrazada en decimal, hexadecimal, octal o como literal IPv6
+- 🌐 IP en lugar de dominio, incluida una IP disfrazada en decimal, hexadecimal, octal, en una forma abreviada o mixta (p. ej. `127.1`, `0x7f.1`) o como literal IPv6 — con el mismo analizador de la especificación WHATWG URL que usaría un navegador
 - 🔤 Punycode / posibles ataques homógrafo, incluyendo homógrafos en Unicode (cirílico, ancho completo...) una vez convertidos a su forma Punycode
 - ✂️ Acortadores de enlaces
 - 🏳️ TLDs de bajo coste habitualmente usados en phishing (.tk, .top, .xyz...)
@@ -78,6 +78,9 @@ al análisis:
 - se recortan los espacios en blanco del contenido decodificado del QR;
 - una URL que `urlsplit()` no puede interpretar (o sin host) se trata como
   "URL malformada", en vez de interrumpir el programa con un traceback;
+- para `http:` o `https:`, cualquier mezcla de `/` y `\` justo después del
+  esquema que incluya al menos una `\` (p. ej. `https:/\evil.top/`) se trata
+  como inicio de la autoridad, tal y como hacen los navegadores con `//`;
 - un `\` antes del host se trata como `/`, tal y como hacen los
   navegadores, y además genera el hallazgo anterior;
 - el host se decodifica si contiene secuencias de escape porcentual

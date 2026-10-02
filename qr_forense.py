@@ -391,27 +391,6 @@ MARCAS_HABITUALMENTE_SUPLANTADAS = {
 }
 
 
-def es_ip_decimal(host: str) -> bool:
-    """Un entero de 32 bits sin signo escrito en decimal (p. ej. 2130706433,
-    equivalente a 127.0.0.1)."""
-    return bool(re.match(r"^\d+$", host)) and int(host) <= 0xFFFFFFFF
-
-
-def es_ip_hexadecimal(host: str) -> bool:
-    """Un entero de 32 bits sin signo escrito en hexadecimal con el prefijo
-    '0x' (p. ej. 0x7f000001, equivalente a 127.0.0.1)."""
-    return bool(re.match(r"^0[xX][0-9a-fA-F]+$", host)) and int(host, 16) <= 0xFFFFFFFF
-
-
-def es_ip_octal(host: str) -> bool:
-    """Cuatro octetos en octal, cada uno con un cero inicial (p. ej.
-    0177.0.0.01, equivalente a 127.0.0.1). No se usa para los octetos
-    normales de uno a tres dígitos sin cero inicial: esos ya los detecta la
-    comprobación 2 en decimal."""
-    octetos = host.split(".")
-    return len(octetos) == 4 and all(re.match(r"^0[0-7]*$", octeto) for octeto in octetos)
-
-
 def es_ipv6_literal(host: str) -> bool:
     """urlsplit() devuelve el host de una URL con una dirección IPv6 entre
     corchetes (p. ej. http://[::1]/) sin los corchetes, así que un ':' en
@@ -419,12 +398,66 @@ def es_ipv6_literal(host: str) -> bool:
     return ":" in host
 
 
+def interpretar_ipv4(host: str):
+    """Aplica el analizador de direcciones IPv4 de la especificación WHATWG
+    URL (https://url.spec.whatwg.org/#concept-ipv4-parser) al host completo,
+    para reconocer también las formas abreviadas o mixtas que un navegador
+    interpreta como una IP (p. ej. "127.1" o "0x7f.1", ambas equivalentes a
+    127.0.0.1), y no solo la dirección completa en puntos o un único
+    componente íntegramente decimal, hexadecimal u octal. El último
+    componente completa los octetos que falten, igual que en la
+    especificación: 1 a 4 componentes separados por puntos, cada uno
+    decimal, hexadecimal con prefijo '0x'/'0X' u octal con un único cero
+    inicial. Devuelve la IP como entero de 32 bits, o None si el host no es
+    una forma de IPv4 válida para esa especificación."""
+    componentes = host.split(".")
+    if len(componentes) > 1 and componentes[-1] == "":
+        componentes = componentes[:-1]
+    if not componentes or len(componentes) > 4:
+        return None
+    numeros = []
+    for componente in componentes:
+        numero = interpretar_numero_ipv4(componente)
+        if numero is None:
+            return None
+        numeros.append(numero)
+    if any(numero > 255 for numero in numeros[:-1]):
+        return None
+    if numeros[-1] >= 256 ** (5 - len(numeros)):
+        return None
+    ip = numeros[-1]
+    for posicion, numero in enumerate(numeros[:-1]):
+        ip += numero << (8 * (3 - posicion))
+    return ip
+
+
+def interpretar_numero_ipv4(componente: str):
+    """Interpreta un componente entre puntos de un host como un número para
+    interpretar_ipv4: decimal si no lleva prefijo, hexadecimal con el
+    prefijo '0x'/'0X', u octal con un único '0' inicial (y al menos dos
+    caracteres). Devuelve el valor como entero, o None si el componente no
+    es válido en ninguna de esas tres bases."""
+    base = 10
+    resto = componente
+    if len(componente) >= 2 and componente[:2].lower() == "0x":
+        base = 16
+        resto = componente[2:]
+    elif len(componente) >= 2 and componente[0] == "0":
+        base = 8
+        resto = componente[1:]
+    if resto == "":
+        return 0
+    cifras_validas_por_base = {8: r"^[0-7]+$", 10: r"^[0-9]+$", 16: r"^[0-9a-fA-F]+$"}
+    if not re.match(cifras_validas_por_base[base], resto):
+        return None
+    return int(resto, base)
+
+
 def ip_disfrazada_a_puntos(host: str) -> str:
-    """Convierte una IP decimal, hexadecimal u octal disfrazada a su forma
-    habitual con puntos, para mostrarla en el hallazgo."""
-    if es_ip_octal(host):
-        return ".".join(str(int(octeto, 8)) for octeto in host.split("."))
-    valor = int(host, 16) if es_ip_hexadecimal(host) else int(host)
+    """Convierte una IP disfrazada en decimal, hexadecimal, octal o en una
+    forma abreviada o mixta (p. ej. "127.1") a su forma habitual con puntos,
+    para mostrarla en el hallazgo."""
+    valor = interpretar_ipv4(host)
     return ".".join(str((valor >> desplazamiento) & 0xFF) for desplazamiento in (24, 16, 8, 0))
 
 
@@ -488,8 +521,24 @@ def esquema_de(texto: str) -> str:
     return coincide.group(1).lower() if coincide else ""
 
 
+def normalizar_barras_tras_el_esquema(texto: str) -> str:
+    """Para 'http:' o 'https:' seguido de una mezcla de '/' y '\\' que
+    incluya al menos una '\\' (p. ej. "https:/\\evil.top/"), reescribe el
+    texto con la autoridad introducida por "://", igual que hacen los
+    navegadores con los esquemas especiales: para ellos, cualquier
+    secuencia de '/' y '\\' tras el esquema introduce la autoridad, no solo
+    "//" exacto. Sin esta normalización, es_url() rechaza la URL antes de
+    que el resto del análisis pueda corregir la '\\' que quede dentro de la
+    propia autoridad. Devuelve el texto sin cambios si no empieza así."""
+    coincide = re.match(r"^(https?):([/\\]+)(.*)$", texto, re.IGNORECASE)
+    if not coincide or "\\" not in coincide.group(2):
+        return texto
+    return f"{coincide.group(1).lower()}://{coincide.group(3)}"
+
+
 def es_url(texto: str) -> bool:
-    return (bool(re.match(r"^[a-zA-Z][a-zA-Z0-9+.-]*://", texto))
+    texto_normalizado = normalizar_barras_tras_el_esquema(texto)
+    return (bool(re.match(r"^[a-zA-Z][a-zA-Z0-9+.-]*://", texto_normalizado))
             or texto.lower().startswith("www.")
             or esquema_de(texto) in ESQUEMAS_PELIGROSOS)
 
@@ -511,7 +560,17 @@ def analizar_url(url: str):
             "puntuacion_riesgo": 6,
         }
 
-    url_normalizada = url if "://" in url else "http://" + url
+    # Para http(s), los navegadores aceptan cualquier mezcla de '/' y '\\'
+    # tras el esquema como inicio de la autoridad, no solo "//" exacto (p.
+    # ej. "https:/\\evil.top/" navega igual que "https://evil.top/"). Se
+    # normaliza antes de nada, para que el resto del análisis — incluida la
+    # detección de '\\' dentro de la propia autoridad, justo abajo —
+    # trabaje siempre sobre una URL con "://".
+    url_con_autoridad_normalizada = normalizar_barras_tras_el_esquema(url)
+    if "://" in url_con_autoridad_normalizada:
+        url_normalizada = url_con_autoridad_normalizada
+    else:
+        url_normalizada = "http://" + url_con_autoridad_normalizada
 
     # Los navegadores leen "\" como "/" dentro de la autoridad de las URLs
     # http(s). Si no se corrige, urlsplit() puede quedarse con un host
@@ -602,12 +661,15 @@ def analizar_url(url: str):
         hallazgos.append(f"El destino es una dirección IP ({host}) en lugar de un nombre de dominio.")
         puntuacion += 3
 
-    # 9. IP disfrazada en decimal, hexadecimal, octal o como literal IPv6,
-    # para no dejar sin puntuar las formas alternativas de escribir una IP
-    # que evitan la comprobación 2. No se suma a la 2: una IP solo puede
-    # tener una de las dos formas (en puntos o disfrazada), nunca ambas.
+    # 9. IP disfrazada en decimal, hexadecimal, octal, en una forma
+    # abreviada o mixta (p. ej. "127.1", "0x7f.1") o como literal IPv6, para
+    # no dejar sin puntuar las formas alternativas de escribir una IP que
+    # evitan la comprobación 2 — con el mismo analizador de la
+    # especificación WHATWG URL que usaría un navegador. No se suma a la 2:
+    # una IP solo puede tener una de las dos formas (en puntos o
+    # disfrazada), nunca ambas.
     es_ip_disfrazada = not es_ip_en_puntos and (
-        es_ip_decimal(host) or es_ip_hexadecimal(host) or es_ip_octal(host) or es_ipv6_literal(host)
+        es_ipv6_literal(host) or interpretar_ipv4(host) is not None
     )
     if es_ip_disfrazada:
         if es_ipv6_literal(host):

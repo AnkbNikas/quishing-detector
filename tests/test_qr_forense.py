@@ -195,6 +195,44 @@ class TestBackslashAntesDelHost(unittest.TestCase):
         self.assertEqual(resultado["hallazgos"], ["No se han detectado patrones sospechosos estructurales en la URL."])
 
 
+class TestBarrasLaxasTrasElEsquema(unittest.TestCase):
+    """Para http(s), los navegadores aceptan cualquier mezcla de '/' y '\\'
+    tras el esquema como inicio de la autoridad, no solo "//" exacto. Sin
+    esta normalización, es_url() rechazaba la URL antes de que analizar_url
+    pudiera siquiera llegar al host real."""
+
+    def test_es_url_reconoce_la_mezcla_de_barra_y_backslash(self):
+        self.assertTrue(qr_forense.es_url("https:/\\dgt-multas-pago.top/"))
+
+    def test_analizar_url_llega_al_dominio_real(self):
+        resultado = qr_forense.analizar_url("https:/\\dgt-multas-pago.top/")
+        self.assertEqual(resultado["dominio"], "dgt-multas-pago.top")
+        self.assertEqual(resultado["puntuacion_riesgo"], 7)
+        self.assertEqual(len(resultado["hallazgos"]), 3)
+        self.assertIn(".top", resultado["hallazgos"][0])
+        self.assertIn("suplantación de marca", resultado["hallazgos"][1])
+        self.assertIn("pago, multa", resultado["hallazgos"][2])
+
+    def test_doble_backslash_tras_el_esquema_tambien_se_reconoce(self):
+        resultado = qr_forense.analizar_url("https:\\\\dgt.es/tramite")
+        self.assertEqual(resultado["dominio"], "dgt.es")
+        self.assertEqual(
+            resultado["hallazgos"],
+            ["No se han detectado patrones sospechosos estructurales en la URL."],
+        )
+
+    def test_combinado_con_backslash_de_truco_sigue_detectando_el_host_real(self):
+        resultado = qr_forense.analizar_url("https:/\\evil.top\\@dgt.es/")
+        self.assertEqual(resultado["dominio"], "evil.top")
+        self.assertIn("\\", resultado["hallazgos"][0])
+
+    def test_sin_backslash_en_las_barras_no_cambia_nada(self):
+        self.assertEqual(
+            qr_forense.normalizar_barras_tras_el_esquema("https://dgt.es/tramite"),
+            "https://dgt.es/tramite",
+        )
+
+
 class TestRutaConEscapesPorcentuales(unittest.TestCase):
     """La ruta y la query se decodifican antes de buscar palabras de
     presión/urgencia, para detectar un término oculto tras un escape
@@ -284,6 +322,57 @@ class TestIpDisfrazada(unittest.TestCase):
 
     def test_dominio_normal_no_se_marca(self):
         resultado = qr_forense.analizar_url("https://dgt.es/tramite")
+        self.assertEqual(
+            resultado["hallazgos"],
+            ["No se han detectado patrones sospechosos estructurales en la URL."],
+        )
+
+
+class TestIpDisfrazadaAbreviadaOMixta(unittest.TestCase):
+    """El analizador de IPv4 de la especificación WHATWG URL también
+    reconoce las formas abreviadas o mixtas (menos de cuatro componentes, o
+    componentes en distinta base), que un navegador interpreta como la
+    misma IP que su forma completa en puntos, y que las comprobaciones de
+    un único componente íntegramente decimal, hexadecimal u octal no
+    cubrían."""
+
+    def test_decimal_abreviada_de_dos_componentes(self):
+        resultado = qr_forense.analizar_url("http://127.1/")
+        self.assertEqual(resultado["dominio"], "127.1")
+        self.assertEqual(resultado["puntuacion_riesgo"], 3)
+        self.assertIn("127.0.0.1", resultado["hallazgos"][0])
+
+    def test_hexadecimal_abreviada_de_dos_componentes(self):
+        resultado = qr_forense.analizar_url("http://0x7f.1/")
+        self.assertEqual(resultado["puntuacion_riesgo"], 3)
+        self.assertIn("127.0.0.1", resultado["hallazgos"][0])
+
+    def test_octal_abreviada_de_dos_componentes(self):
+        resultado = qr_forense.analizar_url("http://0177.1/")
+        self.assertEqual(resultado["puntuacion_riesgo"], 3)
+        self.assertIn("127.0.0.1", resultado["hallazgos"][0])
+
+    def test_mixta_de_tres_componentes(self):
+        resultado = qr_forense.analizar_url("http://0x7f.0.1/")
+        self.assertEqual(resultado["puntuacion_riesgo"], 3)
+        self.assertIn("127.0.0.1", resultado["hallazgos"][0])
+
+    def test_componente_fuera_de_rango_no_es_ip(self):
+        # "0x999" (2457 en decimal) no es válido como componente que no sea
+        # el último (debe estar entre 0 y 255), así que esto no es una IP
+        # para la especificación y no debe puntuarse como tal.
+        resultado = qr_forense.analizar_url("https://0x999.1/x")
+        self.assertEqual(
+            resultado["hallazgos"],
+            ["No se han detectado patrones sospechosos estructurales en la URL."],
+        )
+
+    def test_mas_de_cuatro_componentes_no_es_ip(self):
+        resultado = qr_forense.analizar_url("https://127.0.0.0.1/x")
+        self.assertFalse(any("dirección IP" in h or "IP disfrazada" in h for h in resultado["hallazgos"]))
+
+    def test_dominio_normal_no_se_marca(self):
+        resultado = qr_forense.analizar_url("https://e.test/x")
         self.assertEqual(
             resultado["hallazgos"],
             ["No se han detectado patrones sospechosos estructurales en la URL."],
