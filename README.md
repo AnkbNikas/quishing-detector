@@ -59,12 +59,12 @@ python3 qr_forense.py foto_qr.jpg --whois
 - 🔗 Truco del símbolo `@` en la URL
 - ↩️ `\` antes del host en vez de `/` (p. ej. `evil.top\@dgt.es`), el mismo truco que el del `@` pero a través de cómo lo corrigen los navegadores
 - 🌐 IP en lugar de dominio
-- 🔤 Punycode / posibles ataques homógrafo
+- 🔤 Punycode / posibles ataques homógrafo, incluyendo homógrafos en Unicode (cirílico, ancho completo...) una vez convertidos a su forma Punycode
 - ✂️ Acortadores de enlaces
 - 🏳️ TLDs de bajo coste habitualmente usados en phishing (.tk, .top, .xyz...)
 - 🏦 Suplantación de marcas habituales (DGT, Correos, bancos, mensajería...) — lista ampliable en el propio script
 - 🕓 Antigüedad del dominio vía WHOIS (opcional, requiere internet)
-- ⚠️ Términos de presión/urgencia en la URL
+- ⚠️ Términos de presión/urgencia en la URL, incluso si están ocultos tras un escape porcentual en la ruta
 
 ## Normalización de la URL antes de analizarla
 
@@ -80,7 +80,13 @@ al análisis:
 - el host se decodifica si contiene secuencias de escape porcentual
   (`%70aypal.evil.com` → `paypal.evil.com`);
 - un único punto final en el host (`bit.ly.`) se analiza como si no
-  estuviera.
+  estuviera;
+- un host en Unicode se convierte a su forma Punycode con el códec `idna`
+  de la librería estándar (IDNA 2003). Los navegadores actuales usan UTS
+  #46 no transicional, que difiere de IDNA 2003 en casos como `straße.de`
+  (IDNA 2003 la convierte a `strasse.de`; UTS #46 no transicional la deja
+  en `straße.de` codificada en Punycode). No se ha añadido una dependencia
+  nueva para evitar esa diferencia.
 
 ## Tests
 

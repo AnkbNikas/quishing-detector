@@ -140,6 +140,18 @@ def analizar_url(url: str):
     if host.endswith(".") and host != ".":
         host = host[:-1]
 
+    # Host en Unicode (homógrafos, cirílico, ancho completo...): se
+    # convierte a su forma Punycode con el códec "idna" de la librería
+    # estándar (IDNA 2003) antes de las comprobaciones de host, para que un
+    # dominio como "pаypal.com" (con una "а" cirílica) llegue a la
+    # comprobación de Punycode igual que si ya viniera escrito "xn--...".
+    # Si la codificación falla, se sigue analizando con el host ya
+    # decodificado, sin interrumpir el análisis.
+    try:
+        host = host.encode("idna").decode("ascii")
+    except UnicodeError:
+        pass
+
     if contiene_escapes_en_host:
         hallazgos.append("El host contenía secuencias de escape porcentual — se ha decodificado "
                          f"a «{host}» antes de analizarlo, igual que hacen los navegadores.")
@@ -198,12 +210,18 @@ def analizar_url(url: str):
         puntuacion += 1
 
     # 8. Palabras de urgencia/pago en la ruta (parking, multas, paquetería...)
-    ruta_completa = (partes.path + "?" + partes.query).lower()
+    # La ruta y la query se decodifican antes de buscar las palabras, igual
+    # que el host, para detectar términos ocultos tras un escape porcentual
+    # (p. ej. "/%70ago" en vez de "/pago").
+    ruta_completa = urllib.parse.unquote(partes.path + "?" + partes.query).lower()
     palabras_alerta = ["pago", "payment", "multa", "fine", "verify", "verifica", "urgente",
                        "suspend", "bloqueo", "actualiza", "confirm", "aduana", "tasa"]
     encontradas = [p for p in palabras_alerta if p in ruta_completa or p in host_sin_tld]
     if encontradas:
-        hallazgos.append(f"Contiene términos asociados a presión/urgencia: {', '.join(set(encontradas))}.")
+        # encontradas ya respeta el orden de palabras_alerta, así que el
+        # resultado es el mismo en cada ejecución (antes se perdía ese orden
+        # al pasar por un set(), cuyo recorrido depende del hash aleatorio).
+        hallazgos.append(f"Contiene términos asociados a presión/urgencia: {', '.join(encontradas)}.")
         puntuacion += 1
 
     if not hallazgos:
