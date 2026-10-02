@@ -42,6 +42,26 @@ TLDS_SOSPECHOSOS = {
 # un "dominio" que comprobar.
 ESQUEMAS_PELIGROSOS = {"javascript", "data", "vbscript", "file", "blob", "intent"}
 
+# Palabras de urgencia/pago en otros idiomas, en un bloque independiente por
+# idioma (código ISO 639-1), para extender la comprobación 8 a avisos
+# fraudulentos que no están en español. Cada palabra es un hecho tomado de
+# una fuente lexicográfica de ese idioma, nunca una cita textual de su
+# definición.
+PALABRAS_ALERTA_POR_IDIOMA = {
+    # Checo. Fuente: Internetová jazyková příručka, Ústav pro jazyk český AV
+    # ČR (prirucka.ujc.cas.cz), consultada el 2026-09-24.
+    "cs": [
+        # nedoplatek: importe pendiente de pago, lo que queda por abonar
+        # (entrada "nedoplatek", SSČ y SSJČ).
+        "nedoplatek",
+        # neuhrazený: no abonado, impagado (negación de la entrada
+        # "uhrazený").
+        "neuhrazený",
+        # zablokovaný: bloqueado (entrada "zablokovaný").
+        "zablokovaný",
+    ],
+}
+
 MARCAS_HABITUALMENTE_SUPLANTADAS = {
     "correos": ["correos.es"],
     "dgt": ["dgt.es", "sede.dgt.gob.es"],
@@ -327,15 +347,27 @@ def analizar_url(url: str):
     # 8. Palabras de urgencia/pago en la ruta (parking, multas, paquetería...)
     # La ruta y la query se decodifican antes de buscar las palabras, igual
     # que el host, para detectar términos ocultos tras un escape porcentual
-    # (p. ej. "/%70ago" en vez de "/pago").
+    # (p. ej. "/%70ago" en vez de "/pago"). El contenido y cada palabra de la
+    # lista se pliegan con plegar_diacriticos antes de compararlos, para que
+    # una palabra con diacrítico (p. ej. el checo "zablokovaný") se detecte
+    # tanto si el QR la lleva con su diacrítico como sin él.
     ruta_completa = urllib.parse.unquote(partes.path + "?" + partes.query).lower()
+    ruta_completa_plegada = plegar_diacriticos(ruta_completa)
+    host_plegado = plegar_diacriticos(host_sin_tld)
     palabras_alerta = ["pago", "payment", "multa", "fine", "verify", "verifica", "urgente",
                        "suspend", "bloqueo", "actualiza", "confirm", "aduana", "tasa"]
-    encontradas = [p for p in palabras_alerta if p in ruta_completa or p in host_sin_tld]
+    palabras_alerta_multilingue = palabras_alerta + [
+        palabra for palabras_idioma in PALABRAS_ALERTA_POR_IDIOMA.values() for palabra in palabras_idioma
+    ]
+    encontradas = [
+        p for p in palabras_alerta_multilingue
+        if plegar_diacriticos(p) in ruta_completa_plegada or plegar_diacriticos(p) in host_plegado
+    ]
     if encontradas:
-        # encontradas ya respeta el orden de palabras_alerta, así que el
-        # resultado es el mismo en cada ejecución (antes se perdía ese orden
-        # al pasar por un set(), cuyo recorrido depende del hash aleatorio).
+        # encontradas ya respeta el orden de palabras_alerta_multilingue, así
+        # que el resultado es el mismo en cada ejecución (antes se perdía ese
+        # orden al pasar por un set(), cuyo recorrido depende del hash
+        # aleatorio).
         hallazgos.append(f"Contiene términos asociados a presión/urgencia: {', '.join(encontradas)}.")
         puntuacion += 1
 
