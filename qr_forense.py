@@ -133,6 +133,27 @@ PALABRAS_ALERTA_POR_IDIOMA = {
         # viivis: recargo por demora en el pago (entrada "viivis").
         "viivis",
     ],
+    # Finés. Fuentes: Kilpailu- ja kuluttajavirasto (kkv.fi), Finlex
+    # (finlex.fi) junto con Poliisi (poliisi.fi), y Tulli (tulli.fi),
+    # consultadas el 2026-09-24. Solo "eräpäivä" lleva diacrítico en su
+    # grafía habitual.
+    "fi": [
+        # eräpäivä: fecha límite de pago de una factura, tras la cual se
+        # aplican intereses de demora y recargos de cobro
+        # (Kilpailu- ja kuluttajavirasto, kkv.fi).
+        "eräpäivä",
+        # maksamaton: una factura no abonada dentro de su plazo (misma
+        # fuente).
+        "maksamaton",
+        # rikesakko: multa administrativa fija impuesta por una infracción
+        # menor, con derecho a recurrirla ante el tribunal de distrito en el
+        # plazo de una semana (Finlex, leyes 754/2010 y 986/2016, junto con
+        # Poliisi).
+        "rikesakko",
+        # tullimaksu: arancel o tasa aduanera sobre mercancías que cruzan la
+        # frontera aduanera (Tulli, tulli.fi).
+        "tullimaksu",
+    ],
 }
 
 MARCAS_HABITUALMENTE_SUPLANTADAS = {
