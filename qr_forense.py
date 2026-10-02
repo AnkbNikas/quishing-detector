@@ -270,6 +270,22 @@ PALABRAS_ALERTA_POR_IDIOMA = {
         # frontera aduanera (Tolletaten, toll.no).
         "tollavgift",
     ],
+    # Polaco. Fuente: Słownik języka polskiego PWN (sjp.pwn.pl), consultada
+    # el 2026-09-24. "nieopłacona" y "zaległość" llevan la "ł", que
+    # MAPA_PLEGADO_DIACRITICOS pliega a "l" por no tener descomposición
+    # canónica propia en Unicode.
+    "pl": [
+        # należność: importe pendiente de pago (entrada "należność").
+        "należność",
+        # nieopłacona: no abonada, impagada (ł→l; entrada "nieopłacony").
+        "nieopłacona",
+        # zablokowane: bloqueado, p. ej. un pago o una cuenta (entrada
+        # "zablokować").
+        "zablokowane",
+        # zaległość: atraso o deuda pendiente de pago (ł→l; entrada
+        # "zaległość").
+        "zaległość",
+    ],
 }
 
 MARCAS_HABITUALMENTE_SUPLANTADAS = {
