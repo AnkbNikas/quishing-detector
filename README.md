@@ -67,7 +67,7 @@ python3 qr_forense.py foto_qr.jpg --whois
 - 🕓 Antigüedad del dominio vía WHOIS (opcional, requiere internet)
 - ⚠️ Términos de presión/urgencia en la URL (en español y, de momento, en checo, danés, alemán, estonio, finés, francés, croata, húngaro, italiano, lituano, neerlandés, noruego, polaco, portugués, rumano, eslovaco, esloveno y sueco), incluso si están ocultos tras un escape porcentual en la ruta o escritos sin sus diacríticos
 - 💣 Esquemas peligrosos (`javascript:`, `data:`, `vbscript:`, `file:`, `blob:`, `intent:`) que ejecutan código o cargan contenido arbitrario — riesgo ALTO directo
-- 🔓 `http://` sin cifrar, cuando el contenido original ya traía ese esquema (no se puntúa si lo añade el propio script, ni si el destino ya es una IP)
+- 🔓 `http://` sin cifrar, cuando el contenido original ya traía ese esquema en cualquiera de sus formas aceptadas por un navegador (`http://`, `http:/`, `http:evil.top`...) — no se puntúa si lo añade el propio script, ni si el destino ya es una IP
 
 ## Normalización de la URL antes de analizarla
 
@@ -82,17 +82,20 @@ al análisis:
   signo de número de ancho completo `＃` en `https://dgt.es＃@evil.top/`; o
   por un literal IPv6 sin cerrar), se reconstruye la autoridad igual que lo
   haría un navegador: el host es todo lo posterior al último `@` literal,
-  antes del primer `/`, `?` o `#` literal. Solo si ni siquiera esa lectura
-  es posible se trata como "URL malformada", y con +3, no con 0 — un enlace
-  que no se puede analizar nunca debe parecer de riesgo BAJO. Un host vacío
-  (`https://` sin nada detrás), o que solo decodifica a un carácter que
-  ningún navegador acepta en un host (p. ej. `%2f` → `/`), se puntúa igual,
-  por la misma razón: sigue siendo un enlace activo que no lleva a ningún
-  destino real, no solo un fallo de análisis;
-- para `http:` o `https:`, cualquier secuencia de una o más `/` y `\` justo
-  después del esquema (p. ej. `https:/evil.top/`, `https:///evil.top/` o la
-  mezcla `https:/\evil.top/`) se trata como inicio de la autoridad, tal y
-  como hace un navegador con `//`;
+  antes del primer `/`, `?` o `#` literal, y si ese host está en Unicode se
+  convierte a Punycode igual que en la rama normal, en vez de rechazarse.
+  Solo si ni siquiera esa lectura es posible se trata como "URL malformada",
+  y con +3, no con 0 — un enlace que no se puede analizar nunca debe
+  parecer de riesgo BAJO. Un host vacío (`https://` sin nada detrás), o que
+  solo decodifica a un carácter que ningún navegador acepta en un host
+  (p. ej. `%2f` → `/`), se puntúa igual, por la misma razón: sigue siendo un
+  enlace activo que no lleva a ningún destino real, no solo un fallo de
+  análisis;
+- para `http:` o `https:`, cualquier secuencia de cero o más `/` y `\` justo
+  después del esquema (p. ej. `http:evil.top/login`, sin ninguna barra;
+  `https:/evil.top/`; `https:///evil.top/`; o la mezcla
+  `https:/\evil.top/`) se trata como inicio de la autoridad, tal y como
+  hace un navegador con `//`;
 - un `\` antes del host se trata como `/`, tal y como hacen los
   navegadores, y además genera el hallazgo anterior;
 - el host se decodifica si contiene secuencias de escape porcentual
@@ -125,6 +128,7 @@ No hace falta tener OpenCV instalado para ejecutarlas — `decodificar_qr` solo 
 - Puntuación baja **no** garantiza que el enlace sea seguro. Puntuación alta **no** es prueba definitiva de phishing — son señales de alerta, no un veredicto.
 - La lista de marcas suplantadas es orientativa y ampliable; no cubre todas las posibles víctimas de suplantación.
 - Los términos de presión/urgencia se buscan como subcadena del host o de la ruta, no como palabra completa — una limitación heredada del propio diseño de upstream, no de los idiomas añadidos: por ejemplo, `multa` (de la lista original, sin modificar) es subcadena de la palabra corriente «simultáneamente». No se ha cambiado a una coincidencia por palabra completa para no alterar la puntuación de los ejemplos de referencia.
+- La normalización de la URL sigue las reglas de los navegadores (especificación WHATWG URL) para las formas habituales cubiertas por los tests, no la implementación completa de la especificación.
 
 ## Licencia
 

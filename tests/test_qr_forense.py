@@ -103,6 +103,35 @@ class TestRobustezEntradaMalformada(unittest.TestCase):
         self.assertTrue(resultado["hallazgos"][0].startswith("URL malformada o no analizable"))
         self.assertEqual(qr_forense.clasificar_riesgo(resultado["puntuacion_riesgo"]), "MEDIO")
 
+    def test_esquema_no_http_con_ipv6_sin_cerrar_no_lanza_excepcion(self):
+        # "esquema" y "resto" solo se asignaban dentro de un "if" que solo
+        # entraba para http(s); con cualquier otro esquema (aquí "ftp"),
+        # dividir_autoridad_como_un_navegador(esquema, resto), en el except
+        # de urlsplit(), se llamaba con esas dos variables sin asignar y
+        # lanzaba UnboundLocalError en vez de devolver un resultado.
+        resultado = qr_forense.analizar_url("ftp://[::1")
+        self.assertEqual(resultado["dominio"], "")
+        self.assertEqual(resultado["puntuacion_riesgo"], 3)
+        self.assertTrue(resultado["hallazgos"][0].startswith("URL malformada o no analizable"))
+
+    def test_ninguna_entrada_malformada_lanza_excepcion(self):
+        entradas_malformadas = [
+            "http://[::1",
+            "ftp://[::1",
+            "ftp:///x",
+            "ftp://",
+            "a+b-c1://[::1",
+            "https://dgt.es＃@evil.top/",
+            "https://évil.top/x",
+            "http:evil.top/login",
+            "http:",
+            "http:///",
+        ]
+        for entrada in entradas_malformadas:
+            with self.subTest(entrada=entrada):
+                resultado = qr_forense.analizar_url(entrada)
+                self.assertIn("puntuacion_riesgo", resultado)
+
 
 class TestDividirAutoridadComoUnNavegador(unittest.TestCase):
     """dividir_autoridad_como_un_navegador reproduce la lectura de un
@@ -138,8 +167,13 @@ class TestDividirAutoridadComoUnNavegador(unittest.TestCase):
     def test_literal_ipv6_sin_cerrar_devuelve_none(self):
         self.assertIsNone(qr_forense.dividir_autoridad_como_un_navegador("http", "[::1"))
 
-    def test_host_no_ascii_devuelve_none(self):
-        self.assertIsNone(qr_forense.dividir_autoridad_como_un_navegador("https", "évil.top/x"))
+    def test_host_no_ascii_se_devuelve_en_unicode_sin_rechazarlo(self):
+        # El host en Unicode no se rechaza aquí: analizar_url lo convierte a
+        # Punycode después, con el mismo paso que aplica al host de la rama
+        # normal (ver TestFallbackConHostUnicode).
+        partes = qr_forense.dividir_autoridad_como_un_navegador("https", "évil.top/x")
+        self.assertEqual(partes.hostname, "évil.top")
+        self.assertEqual(partes.path, "/x")
 
 
 class TestUrlsplitRechazaConNfkcPeroSigueAnalizandose(unittest.TestCase):
@@ -161,6 +195,23 @@ class TestUrlsplitRechazaConNfkcPeroSigueAnalizandose(unittest.TestCase):
         self.assertIn("@", resultado["hallazgos"][0])
         self.assertIn(".top", resultado["hallazgos"][1])
         self.assertEqual(qr_forense.clasificar_riesgo(resultado["puntuacion_riesgo"]), "MEDIO")
+
+
+class TestFallbackConHostUnicode(unittest.TestCase):
+    """Cuando urlsplit() rechaza la URL y hay que reconstruir la autoridad
+    como lo haría un navegador (dividir_autoridad_como_un_navegador), un
+    host en Unicode no debe perderse: se convierte a Punycode con el mismo
+    paso que la rama normal, en vez de tratarse como "URL malformada" solo
+    por no ser ASCII."""
+
+    def test_homografo_cirilico_en_el_fallback_llega_a_punycode(self):
+        resultado = qr_forense.analizar_url("https://dgt.es＃@pаypal.top/")
+        self.assertNotEqual(resultado["dominio"], "")
+        self.assertTrue(resultado["dominio"].startswith("xn--"))
+        self.assertTrue(resultado["dominio"].endswith(".top"))
+        self.assertTrue(any("@" in h for h in resultado["hallazgos"]))
+        self.assertTrue(any("Punycode" in h for h in resultado["hallazgos"]))
+        self.assertTrue(any(".top" in h for h in resultado["hallazgos"]))
 
 
 class TestNormalizarContenidoQr(unittest.TestCase):
@@ -426,6 +477,36 @@ class TestSoloBarrasTrasElEsquema(unittest.TestCase):
         )
 
 
+class TestEsquemaSinNingunaBarraTrasElEsquema(unittest.TestCase):
+    """Para http(s), un navegador también reconoce el esquema seguido
+    DIRECTAMENTE del host, sin ninguna '/' ni '\\' de por medio (p. ej.
+    "http:evil.top/login" navega igual que "http://evil.top/login"): el
+    analizador de la especificación WHATWG URL trata cualquier secuencia de
+    '/' y '\\' tras el esquema como inicio de la autoridad, incluida la
+    secuencia vacía. Antes de esta prueba, "http:evil.top/login" ni
+    siquiera pasaba de es_url(), y al llamar a analizar_url() directamente
+    se leía "http" como si fuera el host."""
+
+    def test_es_url_reconoce_el_esquema_sin_ninguna_barra(self):
+        self.assertTrue(qr_forense.es_url("http:evil.top/login"))
+
+    def test_analizar_url_llega_al_host_real(self):
+        resultado = qr_forense.analizar_url("http:evil.top/login")
+        self.assertEqual(resultado["dominio"], "evil.top")
+        self.assertNotEqual(resultado["dominio"], "http")
+
+    def test_normalizar_barras_sin_ninguna_barra(self):
+        self.assertEqual(
+            qr_forense.normalizar_barras_tras_el_esquema("http:evil.top/login"),
+            "http://evil.top/login",
+        )
+
+    def test_https_sin_ninguna_barra_tambien_se_reconoce(self):
+        self.assertTrue(qr_forense.es_url("https:evil.top/login"))
+        resultado = qr_forense.analizar_url("https:evil.top/login")
+        self.assertEqual(resultado["dominio"], "evil.top")
+
+
 class TestRutaConEscapesPorcentuales(unittest.TestCase):
     """La ruta y la query se decodifican antes de buscar palabras de
     presión/urgencia, para detectar un término oculto tras un escape
@@ -606,6 +687,37 @@ class TestInterpretarNumeroIpv4ConComponenteDemasiadoLargo(unittest.TestCase):
         ))
 
 
+class TestInterpretarNumeroIpv4ConCerosALaIzquierda(unittest.TestCase):
+    """Los ceros a la izquierda de un componente no cambian su valor en
+    ninguna base, así que se recortan antes de aplicar
+    LIMITE_CIFRAS_COMPONENTE_IPV4 (y antes de validar sus cifras): un
+    componente con muchísimos ceros a la izquierda seguidos de un valor
+    pequeño no debe rechazarse por su longitud bruta, igual que no lo
+    rechazaría un navegador."""
+
+    def test_hexadecimal_con_treinta_ceros_a_la_izquierda_sigue_siendo_valido(self):
+        self.assertEqual(
+            qr_forense.interpretar_numero_ipv4("0x" + "0" * 30 + "7f"),
+            0x7f,
+        )
+
+    def test_host_con_ip_hexadecimal_disfrazada_de_ceros_se_puntua_como_ip(self):
+        resultado = qr_forense.analizar_url("https://0x" + "0" * 30 + "7f.1/")
+        self.assertEqual(resultado["puntuacion_riesgo"], 3)
+        self.assertIn("127.0.0.1", resultado["hallazgos"][0])
+
+    def test_octal_con_muchos_ceros_a_la_izquierda_sigue_siendo_valido(self):
+        self.assertEqual(
+            qr_forense.interpretar_numero_ipv4("0" + "0" * 30 + "177"),
+            0o177,
+        )
+
+    def test_componente_demasiado_largo_sin_ceros_sigue_siendo_invalido(self):
+        # El recorte de ceros a la izquierda no debe ocultar un componente
+        # genuinamente demasiado largo que no sean solo ceros de relleno.
+        self.assertIsNone(qr_forense.interpretar_numero_ipv4("9" * (qr_forense.LIMITE_CIFRAS_COMPONENTE_IPV4 + 1)))
+
+
 class TestEsquemaPeligroso(unittest.TestCase):
     """Un esquema como javascript:, data:, vbscript:, file:, blob: o
     intent: no tiene host que analizar, pero sigue siendo contenido de
@@ -657,6 +769,23 @@ class TestEsquemaSinCifrar(unittest.TestCase):
     def test_ip_disfrazada_no_suma_el_punto_de_http(self):
         resultado = qr_forense.analizar_url("http://2130706433/")
         self.assertEqual(resultado["puntuacion_riesgo"], 3)
+
+    def test_una_sola_barra_tras_http_tambien_suma_el_punto(self):
+        # esquema_de(url) detecta "http" en el contenido ORIGINAL, antes de
+        # normalizar_barras_tras_el_esquema, así que esta forma aceptada por
+        # los navegadores también suma el punto, y no solo el literal
+        # "http://" exacto.
+        resultado = qr_forense.analizar_url("http:/evil.top/")
+        self.assertEqual(resultado["puntuacion_riesgo"], 2)
+        self.assertTrue(any("http://" in h for h in resultado["hallazgos"]))
+
+    def test_esquema_sin_ninguna_barra_tambien_suma_el_punto(self):
+        resultado = qr_forense.analizar_url("http:evil.top/login")
+        self.assertTrue(any("http://" in h for h in resultado["hallazgos"]))
+
+    def test_mayusculas_en_el_esquema_tambien_suman_el_punto(self):
+        resultado = qr_forense.analizar_url("HTTP://example.com/")
+        self.assertEqual(resultado["puntuacion_riesgo"], 1)
 
 
 class TestCredencialesEnLaUrl(unittest.TestCase):

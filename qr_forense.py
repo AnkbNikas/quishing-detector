@@ -161,13 +161,13 @@ PALABRAS_ALERTA_POR_IDIOMA = {
         "tullimaksu",
     ],
     # Francés. Fuentes: CNRTL, Portail lexical (cnrtl.fr), y Larousse,
-    # Dictionnaire de français (larousse.fr), consultadas el 2026-09-24. No
-    # se incluye "pénalité" (sanción, recargo por demora en el pago; entrada
-    # "pénalité", Larousse y Le Robert): es también la palabra corriente
-    # para una sanción deportiva (p. ej. un penalti o una pénalité de rugby
-    # en una crónica de deporte), un uso habitual y ajeno a los avisos de
-    # pago que esta lista busca, con el que colisionaría con demasiada
-    # frecuencia en contenido benigno.
+    # Dictionnaire de français (larousse.fr), consultadas el 2026-09-24. Se
+    # excluye DELIBERADAMENTE "pénalité" (sanción, recargo por demora en el
+    # pago; entrada "pénalité", Larousse y Le Robert), no por un olvido: es
+    # también la palabra corriente para una sanción deportiva (p. ej. un
+    # penalti o una pénalité de rugby en una crónica de deporte), un uso
+    # habitual y ajeno a los avisos de pago que esta lista busca, con el que
+    # colisionaría con demasiada frecuencia en contenido benigno.
     "fr": [
         # douane: aduana (entrada "douane", CNRTL y Larousse).
         "douane",
@@ -457,12 +457,13 @@ def interpretar_ipv4(host: str):
     return ip
 
 
-# Más cifras de las que necesitaría nunca un componente válido: 2**32 - 1,
-# el mayor valor que interpretar_ipv4 puede llegar a aceptar, ya ocupa como
-# mucho 11 cifras (en octal, su base menos compacta de las tres). Por debajo
-# del límite de conversión de cadena a entero que Python 3.11+ aplica por
-# motivos de seguridad (PEP 2022; 4300 cifras por defecto), para rechazar un
-# componente larguísimo por su longitud, sin intentar convertirlo.
+# Más cifras de las que necesitaría nunca un componente válido ya sin ceros a
+# la izquierda: 2**32 - 1, el mayor valor que interpretar_ipv4 puede llegar a
+# aceptar, ya ocupa como mucho 11 cifras (en octal, su base menos compacta de
+# las tres). Por debajo del límite de conversión de cadena a entero que
+# Python 3.11+ aplica por motivos de seguridad (PEP 2022; 4300 cifras por
+# defecto), para rechazar un componente larguísimo por su longitud, sin
+# intentar convertirlo.
 LIMITE_CIFRAS_COMPONENTE_IPV4 = 16
 
 
@@ -471,9 +472,15 @@ def interpretar_numero_ipv4(componente: str):
     interpretar_ipv4: decimal si no lleva prefijo, hexadecimal con el
     prefijo '0x'/'0X', u octal con un único '0' inicial (y al menos dos
     caracteres). Devuelve el valor como entero, o None si el componente no
-    es válido en ninguna de esas tres bases, o si tiene más cifras que
-    LIMITE_CIFRAS_COMPONENTE_IPV4 — ninguna forma válida las necesita, y así
-    se evita convertir a entero una cadena larguísima."""
+    es válido en ninguna de esas tres bases, o si, ya sin ceros a la
+    izquierda, tiene más cifras que LIMITE_CIFRAS_COMPONENTE_IPV4 — ninguna
+    forma válida las necesita, y así se evita convertir a entero una cadena
+    larguísima. Los ceros a la izquierda se recortan antes de aplicar ese
+    límite (y antes de la validación de cifras) porque no cambian el valor
+    en ninguna base: un componente como "0x" seguido de treinta ceros y
+    "7f" tiene muchas cifras pero sigue valiendo lo mismo que "0x7f", y
+    rechazarlo por su longitud bruta sin recortarlos antes dejaría sin
+    puntuar esa IP disfrazada."""
     base = 10
     resto = componente
     if len(componente) >= 2 and componente[:2].lower() == "0x":
@@ -482,6 +489,7 @@ def interpretar_numero_ipv4(componente: str):
     elif len(componente) >= 2 and componente[0] == "0":
         base = 8
         resto = componente[1:]
+    resto = resto.lstrip("0")
     if resto == "":
         return 0
     if len(resto) > LIMITE_CIFRAS_COMPONENTE_IPV4:
@@ -564,24 +572,27 @@ def esquema_de(texto: str) -> str:
 
 
 def normalizar_barras_tras_el_esquema(texto: str) -> str:
-    """Para 'http:' o 'https:' seguido de cualquier secuencia de una o más
-    '/' y '\\' (p. ej. "https:/evil.top/", "https:///evil.top/" o la mezcla
+    """Para 'http:' o 'https:' seguido de cualquier secuencia de cero o más
+    '/' y '\\' (p. ej. "http:evil.top/login", sin ninguna barra;
+    "https:/evil.top/"; "https:///evil.top/"; o la mezcla
     "https:/\\evil.top/"), reescribe el texto con la autoridad introducida
     por "://", igual que hace el analizador de la especificación WHATWG URL
     con los esquemas especiales: para ellos, cualquier secuencia de '/' y
-    '\\' tras el esquema introduce la autoridad, no solo "//" exacto, y no
-    solo cuando esa secuencia incluye una '\\'. Sin esta normalización,
-    es_url() rechaza la URL antes de que el resto del análisis pueda llegar
-    siquiera al host — por ejemplo, "https:/dgt-multas.top/pago" no pasaba
-    de ahí, y "https:///dgt-multas.top/pago" llegaba a analizarse con un
-    host vacío, en vez de con "dgt-multas.top" en ambos casos. Devuelve el
-    texto sin cambios si no empieza con 'http:' o 'https:' seguido de al
-    menos una '/' o '\\'."""
+    '\\' tras el esquema introduce la autoridad —incluida la secuencia
+    vacía, cuando el esquema va seguido directamente del host— no solo "//"
+    exacto. Sin esta normalización, es_url() rechaza la URL antes de que el
+    resto del análisis pueda llegar siquiera al host — por ejemplo,
+    "http:evil.top/login" se leía con "http" como host al pasar
+    directamente por urlsplit(), "https:/dgt-multas.top/pago" no pasaba de
+    es_url(), y "https:///dgt-multas.top/pago" llegaba a analizarse con un
+    host vacío, en vez de con el mismo host de destino en los tres casos.
+    Devuelve el texto sin cambios si no empieza con 'http:' o 'https:'
+    (sin distinguir mayúsculas de minúsculas)."""
     # re.DOTALL para que "(.*)" también abarque un salto de línea interno en
     # el contenido del QR; sin él, esta expresión regular no coincidía en
     # absoluto con una URL que llevara uno, y la normalización se omitía
     # igual que si no hubiera ninguna barra tras el esquema.
-    coincide = re.match(r"^(https?):([/\\]+)(.*)$", texto, re.IGNORECASE | re.DOTALL)
+    coincide = re.match(r"^(https?):([/\\]*)(.*)$", texto, re.IGNORECASE | re.DOTALL)
     if not coincide:
         return texto
     return f"{coincide.group(1).lower()}://{coincide.group(3)}"
@@ -607,8 +618,10 @@ def dividir_autoridad_como_un_navegador(esquema: str, resto: str):
     y contraseña antes, si la hay). Devuelve un objeto con los mismos
     atributos que usa analizar_url de un SplitResult (scheme, netloc,
     hostname, path, query), o None si ni siquiera esta lectura mínima es
-    fiable — un host que, tras aplicarla, siga sin ser puramente ASCII, o un
-    literal IPv6 sin el corchete de cierre."""
+    fiable — un literal IPv6 sin el corchete de cierre. El host devuelto
+    puede seguir en Unicode (p. ej. "pаypal.top" con una "а" cirílica):
+    analizar_url lo convierte a Punycode después, con el mismo paso que
+    aplica al host de la rama normal, en vez de rechazarlo aquí."""
     fin_autoridad = re.search(r"[/?#]", resto)
     if fin_autoridad:
         autoridad = resto[:fin_autoridad.start()]
@@ -625,9 +638,6 @@ def dividir_autoridad_como_un_navegador(esquema: str, resto: str):
         host = host_con_puerto[1:fin_literal_ipv6]
     else:
         host = host_con_puerto.split(":", 1)[0]
-
-    if not host.isascii():
-        return None
 
     ruta, _, consulta = resto_tras_autoridad.split("#", 1)[0].partition("?")
     return types.SimpleNamespace(
@@ -666,17 +676,31 @@ def analizar_url(url: str):
         url_normalizada = "http://" + url_con_autoridad_normalizada
 
     # Los navegadores leen "\" como "/" dentro de la autoridad de las URLs
-    # http(s). Si no se corrige, urlsplit() puede quedarse con un host
-    # distinto al que realmente visitaría el usuario — por ejemplo,
+    # http(s), pero no en la de otros esquemas (p. ej. ftp://). Si no se
+    # corrige para http(s), urlsplit() puede quedarse con un host distinto
+    # al que realmente visitaría el usuario — por ejemplo,
     # "https://evil.top\@dgt.es/" termina en el dominio oficial "dgt.es" en
     # vez de en "evil.top".
     contiene_backslash_antes_del_host = False
+    # esquema y resto se necesitan también más abajo, en el except de
+    # urlsplit(), para CUALQUIER esquema —no solo http(s)— así que se
+    # calculan aquí de forma incondicional. A esta altura url_normalizada
+    # siempre contiene "://" (la rama anterior se lo añade si el contenido
+    # original no traía ninguno), así que coincide_esquema no debería ser
+    # nunca None; el valor por defecto es solo una red de seguridad para que
+    # analizar_url no pueda lanzar una excepción por "esquema"/"resto" sin
+    # asignar. Antes de este cambio, "esquema" y "resto" solo se asignaban
+    # dentro de un "if" que solo entraba para http(s), y
+    # dividir_autoridad_como_un_navegador(esquema, resto), más abajo,
+    # lanzaba UnboundLocalError con cualquier otro esquema (p. ej.
+    # "ftp://[::1").
+    #
     # re.DOTALL por la misma razón que en normalizar_barras_tras_el_esquema:
     # un salto de línea interno tras la autoridad no debe impedir que esta
     # expresión regular encuentre la propia autoridad.
-    coincide_esquema = re.match(r"^(https?)://(.*)$", url_normalizada, re.IGNORECASE | re.DOTALL)
-    if coincide_esquema:
-        esquema, resto = coincide_esquema.groups()
+    coincide_esquema = re.match(r"^([a-zA-Z][a-zA-Z0-9+.-]*)://(.*)$", url_normalizada, re.IGNORECASE | re.DOTALL)
+    esquema, resto = coincide_esquema.groups() if coincide_esquema else ("", url_normalizada)
+    if esquema.lower() in ("http", "https"):
         autoridad_cruda = re.match(r"^[^/?#]*", resto).group(0)
         if "\\" in autoridad_cruda:
             contiene_backslash_antes_del_host = True
@@ -897,8 +921,12 @@ def analizar_url(url: str):
     # quien añadió "http://" por no haber ningún esquema en el contenido
     # original (una URL "www.ejemplo.com" o sin www tampoco diría nada
     # sobre el cifrado), ni si el destino ya es una IP, puntuada aparte en
-    # la comprobación 2 o la 9.
-    if (partes.scheme.lower() == "http" and bool(re.match(r"^http://", url, re.IGNORECASE))
+    # la comprobación 2 o la 9. esquema_de(url) se aplica al contenido
+    # ORIGINAL, antes de normalizar_barras_tras_el_esquema, así que detecta
+    # cualquier forma de "http:" que un navegador reconozca como tal —con
+    # "://", con una sola barra, con backslashes o directamente sin ninguna
+    # barra ("http:evil.top")— y no solo el literal "http://" exacto.
+    if (partes.scheme.lower() == "http" and esquema_de(url) == "http"
             and not es_ip_en_puntos and not es_ip_disfrazada):
         hallazgos.append("Usa 'http://' sin cifrar — los datos viajan sin proteger y cualquiera en la "
                          "misma red puede leerlos o modificarlos.")
