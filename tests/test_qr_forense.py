@@ -364,6 +364,24 @@ class TestCredencialesEnLaUrl(unittest.TestCase):
         self.assertFalse(any("credenciales" in h for h in resultado["hallazgos"]))
 
 
+class TestPlegarDiacriticos(unittest.TestCase):
+    """plegar_diacriticos permite comparar palabras de urgencia en varios
+    idiomas sin depender de cómo se hayan escrito las tildes, diéresis y
+    demás diacríticos en el contenido del QR."""
+
+    def test_vocal_con_tilde_o_dieresis_se_pliega_con_nfkd(self):
+        self.assertEqual(qr_forense.plegar_diacriticos("zahlungsrückstand"), "zahlungsruckstand")
+        self.assertEqual(qr_forense.plegar_diacriticos("eräpäivä"), "erapaiva")
+
+    def test_letras_sin_descomposicion_canonica_usan_el_mapa(self):
+        self.assertEqual(qr_forense.plegar_diacriticos("spærret"), "spaerret")
+        self.assertEqual(qr_forense.plegar_diacriticos("bußgeld"), "bussgeld")
+        self.assertEqual(qr_forense.plegar_diacriticos("zaległość"), "zaleglosc")
+
+    def test_texto_sin_diacriticos_no_cambia(self):
+        self.assertEqual(qr_forense.plegar_diacriticos("bloqueado"), "bloqueado")
+
+
 class TestDecodificarQrSinOpencv(unittest.TestCase):
     """decodificar_qr debe fallar con un error claro si falta OpenCV, en
     lugar de impedir importar el módulo cuando no está instalado."""

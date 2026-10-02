@@ -18,6 +18,7 @@ import argparse
 import json
 import re
 import sys
+import unicodedata
 import urllib.parse
 from datetime import datetime, timezone
 from pathlib import Path
@@ -95,6 +96,28 @@ def ip_disfrazada_a_puntos(host: str) -> str:
         return ".".join(str(int(octeto, 8)) for octeto in host.split("."))
     valor = int(host, 16) if es_ip_hexadecimal(host) else int(host)
     return ".".join(str((valor >> desplazamiento) & 0xFF) for desplazamiento in (24, 16, 8, 0))
+
+
+# Letras con diacrítico que unicodedata.normalize("NFKD", ...) no separa en
+# una letra base más una marca combinante, porque no tienen descomposición
+# canónica propia en Unicode (p. ej. "ß" no es "s" + combinante).
+MAPA_PLEGADO_DIACRITICOS = {
+    "æ": "ae", "ø": "o", "ł": "l", "ß": "ss", "đ": "d", "œ": "oe",
+}
+
+
+def plegar_diacriticos(texto: str) -> str:
+    """Quita las tildes, diéresis y demás diacríticos de un texto ya en
+    minúsculas, para comparar palabras de urgencia en varios idiomas sin
+    depender de cómo se hayan escrito esos diacríticos en el contenido del
+    QR. unicodedata.normalize con NFKD separa la mayoría de las letras con
+    diacrítico en una letra base más una marca combinante eliminable (p. ej.
+    "ä" -> "a" + combinante), pero no cubre "æ", "ø", "ł", "ß", "đ" ni "œ",
+    así que esas letras se sustituyen antes con MAPA_PLEGADO_DIACRITICOS."""
+    for letra, plegada in MAPA_PLEGADO_DIACRITICOS.items():
+        texto = texto.replace(letra, plegada)
+    descompuesto = unicodedata.normalize("NFKD", texto)
+    return "".join(c for c in descompuesto if not unicodedata.combining(c))
 
 
 def decodificar_qr(path: Path):
