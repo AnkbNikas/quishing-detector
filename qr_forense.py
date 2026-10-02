@@ -78,6 +78,12 @@ def decodificar_qr(path: Path):
     return resultados
 
 
+def normalizar_contenido_qr(texto: str) -> str:
+    """Elimina los espacios en blanco del principio y el final del contenido
+    decodificado del QR, antes de clasificarlo como URL o analizarlo."""
+    return texto.strip()
+
+
 def es_url(texto: str) -> bool:
     return bool(re.match(r"^[a-zA-Z][a-zA-Z0-9+.-]*://", texto)) or texto.lower().startswith("www.")
 
@@ -87,8 +93,61 @@ def analizar_url(url: str):
     puntuacion = 0
 
     url_normalizada = url if "://" in url else "http://" + url
-    partes = urllib.parse.urlsplit(url_normalizada)
-    host = partes.hostname or ""
+
+    # Los navegadores leen "\" como "/" dentro de la autoridad de las URLs
+    # http(s). Si no se corrige, urlsplit() puede quedarse con un host
+    # distinto al que realmente visitaría el usuario — por ejemplo,
+    # "https://evil.top\@dgt.es/" termina en el dominio oficial "dgt.es" en
+    # vez de en "evil.top".
+    contiene_backslash_antes_del_host = False
+    coincide_esquema = re.match(r"^(https?)://(.*)$", url_normalizada, re.IGNORECASE)
+    if coincide_esquema:
+        esquema, resto = coincide_esquema.groups()
+        autoridad_cruda = re.match(r"^[^/?#]*", resto).group(0)
+        if "\\" in autoridad_cruda:
+            contiene_backslash_antes_del_host = True
+        url_normalizada = f"{esquema}://{resto.replace(chr(92), '/')}"
+
+    try:
+        partes = urllib.parse.urlsplit(url_normalizada)
+        host = partes.hostname or ""
+    except ValueError as exc:
+        return {
+            "url": url,
+            "dominio": "",
+            "hallazgos": [f"URL malformada o no analizable: {exc}"],
+            "puntuacion_riesgo": 0,
+        }
+
+    if not host:
+        return {
+            "url": url,
+            "dominio": "",
+            "hallazgos": ["URL malformada o no analizable: no contiene ningún host."],
+            "puntuacion_riesgo": 0,
+        }
+
+    # Host con secuencias de escape porcentual (p. ej. "%70aypal.evil.com",
+    # "bit.l%79"): se decodifica antes de las comprobaciones de host, igual
+    # que hacen los navegadores con las secuencias %XX de la URL.
+    host_sin_decodificar = host
+    host = urllib.parse.unquote(host)
+    contiene_escapes_en_host = host != host_sin_decodificar
+
+    # Un único punto final en el host ("bit.ly.", "evil.top.") es la forma
+    # habitual de referirse a la raíz del DNS; se analiza como si no
+    # estuviera, igual que hacen los navegadores.
+    if host.endswith(".") and host != ".":
+        host = host[:-1]
+
+    if contiene_escapes_en_host:
+        hallazgos.append("El host contenía secuencias de escape porcentual — se ha decodificado "
+                         f"a «{host}» antes de analizarlo, igual que hacen los navegadores.")
+
+    if contiene_backslash_antes_del_host:
+        hallazgos.append("Contiene '\\' antes del host — los navegadores lo interpretan como '/', "
+                         "lo que trunca la autoridad igual que el truco de '@'.")
+        puntuacion += 4
 
     # 1. Truco @ (todo lo anterior al @ se ignora en la barra de navegación)
     if "@" in partes.netloc:
@@ -257,7 +316,7 @@ def main():
         sys.exit(1)
 
     print(f"[*] Leyendo código QR de: {path}")
-    contenidos = decodificar_qr(path)
+    contenidos = [normalizar_contenido_qr(c) for c in decodificar_qr(path)]
 
     if not contenidos:
         print("[!] No se ha podido decodificar ningún código QR en la imagen.")

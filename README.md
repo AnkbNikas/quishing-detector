@@ -57,6 +57,7 @@ python3 qr_forense.py foto_qr.jpg --whois
 ## Qué comprueba
 
 - 🔗 Truco del símbolo `@` en la URL
+- ↩️ `\` antes del host en vez de `/` (p. ej. `evil.top\@dgt.es`), el mismo truco que el del `@` pero a través de cómo lo corrigen los navegadores
 - 🌐 IP en lugar de dominio
 - 🔤 Punycode / posibles ataques homógrafo
 - ✂️ Acortadores de enlaces
@@ -64,6 +65,22 @@ python3 qr_forense.py foto_qr.jpg --whois
 - 🏦 Suplantación de marcas habituales (DGT, Correos, bancos, mensajería...) — lista ampliable en el propio script
 - 🕓 Antigüedad del dominio vía WHOIS (opcional, requiere internet)
 - ⚠️ Términos de presión/urgencia en la URL
+
+## Normalización de la URL antes de analizarla
+
+Antes de aplicar las comprobaciones anteriores, la URL se normaliza igual
+que lo haría un navegador, para que un disfraz en la propia URL no engañe
+al análisis:
+
+- se recortan los espacios en blanco del contenido decodificado del QR;
+- una URL que `urlsplit()` no puede interpretar (o sin host) se trata como
+  "URL malformada", en vez de interrumpir el programa con un traceback;
+- un `\` antes del host se trata como `/`, tal y como hacen los
+  navegadores, y además genera el hallazgo anterior;
+- el host se decodifica si contiene secuencias de escape porcentual
+  (`%70aypal.evil.com` → `paypal.evil.com`);
+- un único punto final en el host (`bit.ly.`) se analiza como si no
+  estuviera.
 
 ## Tests
 
