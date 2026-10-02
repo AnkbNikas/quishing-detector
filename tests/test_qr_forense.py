@@ -316,6 +316,33 @@ class TestEsquemaPeligroso(unittest.TestCase):
         )
 
 
+class TestEsquemaSinCifrar(unittest.TestCase):
+    """'http://' explícito en el contenido original suma +1, pero no si el
+    contenido no traía ningún esquema (lo añade el propio script) ni si el
+    destino ya es una IP, puntuada aparte."""
+
+    def test_http_explicito_suma_un_punto(self):
+        resultado = qr_forense.analizar_url("http://example.com/")
+        self.assertEqual(resultado["puntuacion_riesgo"], 1)
+        self.assertIn("http://", resultado["hallazgos"][0])
+
+    def test_https_no_suma_nada(self):
+        resultado = qr_forense.analizar_url("https://example.com/")
+        self.assertEqual(resultado["puntuacion_riesgo"], 0)
+
+    def test_sin_esquema_no_suma_nada(self):
+        resultado = qr_forense.analizar_url("www.example.com")
+        self.assertEqual(resultado["puntuacion_riesgo"], 0)
+
+    def test_ip_en_puntos_no_suma_el_punto_de_http(self):
+        resultado = qr_forense.analizar_url("http://192.168.1.1/")
+        self.assertEqual(resultado["puntuacion_riesgo"], 3)
+
+    def test_ip_disfrazada_no_suma_el_punto_de_http(self):
+        resultado = qr_forense.analizar_url("http://2130706433/")
+        self.assertEqual(resultado["puntuacion_riesgo"], 3)
+
+
 class TestDecodificarQrSinOpencv(unittest.TestCase):
     """decodificar_qr debe fallar con un error claro si falta OpenCV, en
     lugar de impedir importar el módulo cuando no está instalado."""

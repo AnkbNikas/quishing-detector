@@ -306,6 +306,17 @@ def analizar_url(url: str):
         hallazgos.append(f"Contiene términos asociados a presión/urgencia: {', '.join(encontradas)}.")
         puntuacion += 1
 
+    # 10. Esquema sin cifrar (http). No se puntúa si el propio script fue
+    # quien añadió "http://" por no haber ningún esquema en el contenido
+    # original (una URL "www.ejemplo.com" o sin www tampoco diría nada
+    # sobre el cifrado), ni si el destino ya es una IP, puntuada aparte en
+    # la comprobación 2 o la 9.
+    if (partes.scheme.lower() == "http" and bool(re.match(r"^http://", url, re.IGNORECASE))
+            and not es_ip_en_puntos and not es_ip_disfrazada):
+        hallazgos.append("Usa 'http://' sin cifrar — los datos viajan sin proteger y cualquiera en la "
+                         "misma red puede leerlos o modificarlos.")
+        puntuacion += 1
+
     if not hallazgos:
         hallazgos.append("No se han detectado patrones sospechosos estructurales en la URL.")
 
