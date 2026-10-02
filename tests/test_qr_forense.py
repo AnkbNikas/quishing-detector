@@ -114,19 +114,29 @@ class TestNormalizarContenidoQr(unittest.TestCase):
 
 
 class TestHostVacio(unittest.TestCase):
-    """Un host vacío (p. ej. "http:///login") no tiene dominio que
-    comprobar, así que se trata como una URL malformada, igual que una
-    que urlsplit() no puede interpretar."""
+    """Un host vacío (p. ej. "http:///login", "https://") no tiene ninguna
+    autoridad real a la que navegar, así que se puntúa igual que una IP
+    disfrazada (+3) en vez de con 0: es en sí mismo un patrón habitual de
+    enlace manipulado o incompleto, no un simple fallo de análisis."""
 
     def test_host_vacio_se_trata_como_url_malformada(self):
         resultado = qr_forense.analizar_url("http:///login")
         self.assertEqual(resultado["dominio"], "")
-        self.assertEqual(resultado["puntuacion_riesgo"], 0)
+        self.assertEqual(resultado["puntuacion_riesgo"], 3)
         self.assertEqual(
             resultado["hallazgos"],
             ["URL malformada o no analizable: no contiene ningún host."],
         )
-        self.assertEqual(qr_forense.clasificar_riesgo(resultado["puntuacion_riesgo"]), "BAJO")
+        self.assertEqual(qr_forense.clasificar_riesgo(resultado["puntuacion_riesgo"]), "MEDIO")
+
+    def test_https_sin_nada_detras_tambien_se_puntua(self):
+        resultado = qr_forense.analizar_url("https://")
+        self.assertEqual(resultado["dominio"], "")
+        self.assertEqual(resultado["puntuacion_riesgo"], 3)
+        self.assertEqual(
+            resultado["hallazgos"],
+            ["URL malformada o no analizable: no contiene ningún host."],
+        )
 
 
 class TestPuntoFinalEnHost(unittest.TestCase):
@@ -176,6 +186,48 @@ class TestHostConEscapesPorcentuales(unittest.TestCase):
         self.assertIn("acortador", resultado["hallazgos"][0])
 
 
+class TestHostConCaracterProhibido(unittest.TestCase):
+    """Un host que solo decodifica a un carácter prohibido (p. ej. "%2f" ->
+    "/") no es un host real para ningún navegador, aunque urlsplit() lo
+    acepte antes de decodificarlo: se valida el host ya decodificado antes
+    de seguir analizándolo o de mostrarlo como destino."""
+
+    def test_host_decodifica_a_una_barra_se_trata_como_url_malformada(self):
+        resultado = qr_forense.analizar_url("https://%2f/")
+        self.assertEqual(resultado["dominio"], "")
+        self.assertEqual(resultado["puntuacion_riesgo"], 3)
+        self.assertEqual(
+            resultado["hallazgos"],
+            ["URL malformada o no analizable: el host decodificado contiene un "
+             "carácter que ningún navegador acepta en un host."],
+        )
+
+    def test_host_normal_no_activa_la_comprobacion(self):
+        resultado = qr_forense.analizar_url("https://dgt.es/tramite")
+        self.assertEqual(
+            resultado["hallazgos"],
+            ["No se han detectado patrones sospechosos estructurales en la URL."],
+        )
+
+
+class TestHostContieneCaracterProhibido(unittest.TestCase):
+    """host_contiene_caracter_prohibido distingue los delimitadores propios
+    de una URL (y los espacios en blanco o de control) de un host válido,
+    incluido un literal IPv6 con ':' pero sin corchetes."""
+
+    def test_barra_es_un_caracter_prohibido(self):
+        self.assertTrue(qr_forense.host_contiene_caracter_prohibido("/"))
+
+    def test_host_normal_no_tiene_caracteres_prohibidos(self):
+        self.assertFalse(qr_forense.host_contiene_caracter_prohibido("dgt.es"))
+
+    def test_los_dos_puntos_no_son_un_caracter_prohibido(self):
+        # Un literal IPv6 llega aquí sin corchetes (p. ej. "::1"); ':' no
+        # está en CARACTERES_PROHIBIDOS_EN_HOST para no tratarlo como un
+        # host inválido.
+        self.assertFalse(qr_forense.host_contiene_caracter_prohibido("::1"))
+
+
 class TestBackslashAntesDelHost(unittest.TestCase):
     """Los navegadores interpretan "\\" como "/" en la autoridad de las
     URLs http(s), así que un "\\" antes del host debe analizarse como si
@@ -193,6 +245,22 @@ class TestBackslashAntesDelHost(unittest.TestCase):
     def test_sin_backslash_no_genera_el_hallazgo(self):
         resultado = qr_forense.analizar_url("https://dgt.es/tramite")
         self.assertEqual(resultado["hallazgos"], ["No se han detectado patrones sospechosos estructurales en la URL."])
+
+
+class TestBackslashConSaltoDeLineaEnMedio(unittest.TestCase):
+    """'.' no coincide con un salto de línea salvo que la expresión regular
+    use re.DOTALL. Sin ese indicador, una URL con un salto de línea interno
+    tras la autoridad no coincidía en absoluto con la expresión que detecta
+    el '\\' antes del host, y la normalización se omitía por completo, en
+    vez de solo fallar al encontrar el '\\' concreto."""
+
+    def test_arroba_tras_backslash_con_salto_de_linea_llega_al_host_real(self):
+        resultado = qr_forense.analizar_url("https://evil.top\\@dgt.es/\nx")
+        self.assertEqual(resultado["dominio"], "evil.top")
+        self.assertEqual(resultado["puntuacion_riesgo"], 5)
+        self.assertEqual(len(resultado["hallazgos"]), 2)
+        self.assertIn("\\", resultado["hallazgos"][0])
+        self.assertIn(".top", resultado["hallazgos"][1])
 
 
 class TestBarrasLaxasTrasElEsquema(unittest.TestCase):
@@ -286,6 +354,23 @@ class TestHostUnicodeConvertidoAPunycode(unittest.TestCase):
         # host ya decodificado en vez de interrumpirse.
         resultado = qr_forense.analizar_url("https://a..b.com/x")
         self.assertEqual(resultado["dominio"], "a..b.com")
+
+
+class TestPalabraDeUrgenciaEnHostUnicode(unittest.TestCase):
+    """La comprobación 8 debe seguir encontrando una palabra de urgencia en
+    el host aunque ese host se convierta a Punycode antes de las
+    comprobaciones de host: se pliega una vista del host en Unicode,
+    tomada antes de esa conversión, no el host ya convertido a Punycode,
+    donde una letra con diacrítico ya no existe como tal."""
+
+    def test_palabra_danesa_en_un_host_que_se_convierte_a_punycode(self):
+        resultado = qr_forense.analizar_url("https://www.spærret.com/")
+        self.assertTrue(resultado["dominio"].startswith("www.xn--"))
+        self.assertTrue(resultado["dominio"].endswith(".com"))
+        self.assertIn(
+            "Contiene términos asociados a presión/urgencia: spærret.",
+            resultado["hallazgos"],
+        )
 
 
 class TestIpDisfrazada(unittest.TestCase):

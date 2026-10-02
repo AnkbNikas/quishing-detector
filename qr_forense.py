@@ -398,6 +398,24 @@ def es_ipv6_literal(host: str) -> bool:
     return ":" in host
 
 
+# Caracteres que ningún navegador acepta dentro de un host, según la
+# especificación WHATWG URL (https://url.spec.whatwg.org/#host-miscellaneous):
+# delimitadores de la propia URL (barra, interrogante, almohadilla,
+# arroba...) y espacios en blanco o de control. No incluye ':', que
+# es_ipv6_literal ya comprueba aparte: un literal IPv6 llega hasta aquí sin
+# corchetes y con ':' dentro, y eso no lo convierte en un host inválido.
+CARACTERES_PROHIBIDOS_EN_HOST = set("\x00\t\n\r #/?@[\\]^|")
+
+
+def host_contiene_caracter_prohibido(host: str) -> bool:
+    """Comprueba si el host, ya decodificado de sus secuencias de escape
+    porcentual, contiene algún carácter que ningún navegador acepta como
+    parte de un host. Un host que solo llega a tener ese carácter tras
+    decodificar un escape porcentual (p. ej. "%2f" -> "/") no es un host
+    real, aunque urlsplit() lo haya aceptado antes de decodificarlo."""
+    return any(caracter in CARACTERES_PROHIBIDOS_EN_HOST for caracter in host)
+
+
 def interpretar_ipv4(host: str):
     """Aplica el analizador de direcciones IPv4 de la especificación WHATWG
     URL (https://url.spec.whatwg.org/#concept-ipv4-parser) al host completo,
@@ -530,7 +548,11 @@ def normalizar_barras_tras_el_esquema(texto: str) -> str:
     "//" exacto. Sin esta normalización, es_url() rechaza la URL antes de
     que el resto del análisis pueda corregir la '\\' que quede dentro de la
     propia autoridad. Devuelve el texto sin cambios si no empieza así."""
-    coincide = re.match(r"^(https?):([/\\]+)(.*)$", texto, re.IGNORECASE)
+    # re.DOTALL para que "(.*)" también abarque un salto de línea interno en
+    # el contenido del QR; sin él, esta expresión regular no coincidía en
+    # absoluto con una URL que llevara uno, y la normalización se omitía
+    # igual que si no hubiera ninguna '\\' tras el esquema.
+    coincide = re.match(r"^(https?):([/\\]+)(.*)$", texto, re.IGNORECASE | re.DOTALL)
     if not coincide or "\\" not in coincide.group(2):
         return texto
     return f"{coincide.group(1).lower()}://{coincide.group(3)}"
@@ -578,7 +600,10 @@ def analizar_url(url: str):
     # "https://evil.top\@dgt.es/" termina en el dominio oficial "dgt.es" en
     # vez de en "evil.top".
     contiene_backslash_antes_del_host = False
-    coincide_esquema = re.match(r"^(https?)://(.*)$", url_normalizada, re.IGNORECASE)
+    # re.DOTALL por la misma razón que en normalizar_barras_tras_el_esquema:
+    # un salto de línea interno tras la autoridad no debe impedir que esta
+    # expresión regular encuentre la propia autoridad.
+    coincide_esquema = re.match(r"^(https?)://(.*)$", url_normalizada, re.IGNORECASE | re.DOTALL)
     if coincide_esquema:
         esquema, resto = coincide_esquema.groups()
         autoridad_cruda = re.match(r"^[^/?#]*", resto).group(0)
@@ -597,12 +622,17 @@ def analizar_url(url: str):
             "puntuacion_riesgo": 0,
         }
 
+    # Un host vacío (p. ej. "https://" o "http:///login") no tiene ninguna
+    # autoridad real a la que navegar. Se puntúa igual que una IP disfrazada
+    # (+3): ningún navegador llegaría a ningún destino con esta URL, lo que
+    # es en sí mismo un patrón habitual de enlace manipulado o incompleto,
+    # no un simple fallo de análisis que deba quedar en 0.
     if not host:
         return {
             "url": url,
             "dominio": "",
             "hallazgos": ["URL malformada o no analizable: no contiene ningún host."],
-            "puntuacion_riesgo": 0,
+            "puntuacion_riesgo": 3,
         }
 
     # Host con secuencias de escape porcentual (p. ej. "%70aypal.evil.com",
@@ -611,6 +641,21 @@ def analizar_url(url: str):
     host_sin_decodificar = host
     host = urllib.parse.unquote(host)
     contiene_escapes_en_host = host != host_sin_decodificar
+
+    # Un host puede decodificar a un carácter que ningún navegador acepta
+    # como parte de un host (p. ej. "%2f" -> "/"), lo que cambiaría qué
+    # parte de la URL es la autoridad y cuál es la ruta si se siguiera
+    # analizando como si fuera un dominio real. Se trata como la misma URL
+    # malformada que un host vacío, con la misma puntuación, en vez de
+    # analizar o mostrar ese carácter como si fuera un destino.
+    if host_contiene_caracter_prohibido(host):
+        return {
+            "url": url,
+            "dominio": "",
+            "hallazgos": ["URL malformada o no analizable: el host decodificado contiene un "
+                         "carácter que ningún navegador acepta en un host."],
+            "puntuacion_riesgo": 3,
+        }
 
     # Un único punto final en el host ("bit.ly.", "evil.top.") es la forma
     # habitual de referirse a la raíz del DNS; se analiza como si no
@@ -625,6 +670,13 @@ def analizar_url(url: str):
     # comprobación de Punycode igual que si ya viniera escrito "xn--...".
     # Si la codificación falla, se sigue analizando con el host ya
     # decodificado, sin interrumpir el análisis.
+    #
+    # host_unicode conserva el host en Unicode, de antes de esta conversión,
+    # para la comprobación 8 de más abajo: una palabra de urgencia con
+    # diacrítico (p. ej. el danés "spærret") deja de existir como tal en el
+    # host una vez convertido a Punycode, así que buscarla ahí nunca la
+    # encontraría.
+    host_unicode = host
     try:
         host = host.encode("idna").decode("ascii")
     except UnicodeError:
@@ -725,7 +777,11 @@ def analizar_url(url: str):
     # tanto si el QR la lleva con su diacrítico como sin él.
     ruta_completa = urllib.parse.unquote(partes.path + "?" + partes.query).lower()
     ruta_completa_plegada = plegar_diacriticos(ruta_completa)
-    host_plegado = plegar_diacriticos(host_sin_tld)
+    # Se pliega host_unicode (el host de antes de la conversión a
+    # Punycode), no host_sin_tld, para que una palabra de urgencia con
+    # diacrítico siga encontrándose aunque el dominio reportado ya esté en
+    # Punycode (p. ej. "www.spærret.com" -> "www.xn--sprret-...com").
+    host_plegado = plegar_diacriticos(host_unicode.lower())
     palabras_alerta = ["pago", "payment", "multa", "fine", "verify", "verifica", "urgente",
                        "suspend", "bloqueo", "actualiza", "confirm", "aduana", "tasa"]
     palabras_alerta_multilingue = palabras_alerta + [

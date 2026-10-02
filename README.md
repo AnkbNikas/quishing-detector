@@ -76,8 +76,12 @@ que lo haría un navegador, para que un disfraz en la propia URL no engañe
 al análisis:
 
 - se recortan los espacios en blanco del contenido decodificado del QR;
-- una URL que `urlsplit()` no puede interpretar (o sin host) se trata como
-  "URL malformada", en vez de interrumpir el programa con un traceback;
+- una URL que `urlsplit()` no puede interpretar se trata como "URL
+  malformada" (0 puntos), en vez de interrumpir el programa con un
+  traceback; un host vacío (`https://` sin nada detrás), o que solo
+  decodifica a un carácter que ningún navegador acepta en un host (p. ej.
+  `%2f` → `/`), se trata igual pero suma +3: sigue siendo un enlace activo
+  que no lleva a ningún destino real, no solo un fallo de análisis;
 - para `http:` o `https:`, cualquier mezcla de `/` y `\` justo después del
   esquema que incluya al menos una `\` (p. ej. `https:/\evil.top/`) se trata
   como inicio de la autoridad, tal y como hacen los navegadores con `//`;
@@ -92,7 +96,10 @@ al análisis:
   #46 no transicional, que difiere de IDNA 2003 en casos como `straße.de`
   (IDNA 2003 la convierte a `strasse.de`; UTS #46 no transicional la deja
   en `straße.de` codificada en Punycode). No se ha añadido una dependencia
-  nueva para evitar esa diferencia.
+  nueva para evitar esa diferencia. La comprobación de términos de
+  presión/urgencia sigue buscando sobre el host en Unicode, de antes de
+  esta conversión, para no perder una palabra con diacrítico que ya no
+  existe como tal una vez convertida a Punycode.
 
 ## Tests
 
