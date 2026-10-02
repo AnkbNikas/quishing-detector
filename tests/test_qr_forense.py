@@ -290,6 +290,32 @@ class TestIpDisfrazada(unittest.TestCase):
         )
 
 
+class TestEsquemaPeligroso(unittest.TestCase):
+    """Un esquema como javascript:, data:, vbscript:, file:, blob: o
+    intent: no tiene host que analizar, pero sigue siendo contenido de
+    alto riesgo: se puntúa con 6 (ALTO) directamente, en vez de quedar sin
+    analizar por no tener '://'."""
+
+    def test_javascript_es_url_y_se_puntua_como_alto(self):
+        self.assertTrue(qr_forense.es_url("javascript:alert(1)"))
+        resultado = qr_forense.analizar_url("javascript:alert(1)")
+        self.assertEqual(resultado["dominio"], "")
+        self.assertEqual(resultado["puntuacion_riesgo"], 6)
+        self.assertEqual(qr_forense.clasificar_riesgo(resultado["puntuacion_riesgo"]), "ALTO")
+        self.assertIn("javascript:", resultado["hallazgos"][0])
+
+    def test_data_tambien_se_puntua_como_alto(self):
+        resultado = qr_forense.analizar_url("data:text/html,<script>alert(1)</script>")
+        self.assertEqual(resultado["puntuacion_riesgo"], 6)
+
+    def test_esquema_normal_no_se_trata_como_peligroso(self):
+        resultado = qr_forense.analizar_url("https://dgt.es/tramite")
+        self.assertEqual(
+            resultado["hallazgos"],
+            ["No se han detectado patrones sospechosos estructurales en la URL."],
+        )
+
+
 class TestDecodificarQrSinOpencv(unittest.TestCase):
     """decodificar_qr debe fallar con un error claro si falta OpenCV, en
     lugar de impedir importar el módulo cuando no está instalado."""

@@ -34,6 +34,13 @@ TLDS_SOSPECHOSOS = {
     "surf", "loan", "gd", "cam", "icu", "cyou",
 }
 
+# Esquemas que no navegan a una página web, sino que ejecutan código
+# (javascript, vbscript), cargan contenido arbitrario sin red (data, blob),
+# acceden al sistema de archivos (file) o lanzan una app con permisos
+# propios (intent, en Android) — el riesgo no depende del dominio ni existe
+# un "dominio" que comprobar.
+ESQUEMAS_PELIGROSOS = {"javascript", "data", "vbscript", "file", "blob", "intent"}
+
 MARCAS_HABITUALMENTE_SUPLANTADAS = {
     "correos": ["correos.es"],
     "dgt": ["dgt.es", "sede.dgt.gob.es"],
@@ -121,13 +128,35 @@ def normalizar_contenido_qr(texto: str) -> str:
     return texto.strip()
 
 
+def esquema_de(texto: str) -> str:
+    """Devuelve el esquema de texto (lo anterior al primer ':'), en
+    minúsculas, o una cadena vacía si no tiene ninguno."""
+    coincide = re.match(r"^([a-zA-Z][a-zA-Z0-9+.-]*):", texto)
+    return coincide.group(1).lower() if coincide else ""
+
+
 def es_url(texto: str) -> bool:
-    return bool(re.match(r"^[a-zA-Z][a-zA-Z0-9+.-]*://", texto)) or texto.lower().startswith("www.")
+    return (bool(re.match(r"^[a-zA-Z][a-zA-Z0-9+.-]*://", texto))
+            or texto.lower().startswith("www.")
+            or esquema_de(texto) in ESQUEMAS_PELIGROSOS)
 
 
 def analizar_url(url: str):
     hallazgos = []
     puntuacion = 0
+
+    # Esquemas peligrosos (javascript:, data:, vbscript:, file:, blob:,
+    # intent:): no tienen autoridad ni host que analizar, así que se
+    # puntúan aparte y se devuelve antes de normalizar nada.
+    esquema_peligroso = esquema_de(url)
+    if esquema_peligroso in ESQUEMAS_PELIGROSOS:
+        return {
+            "url": url,
+            "dominio": "",
+            "hallazgos": [f"Usa el esquema '{esquema_peligroso}:', que puede ejecutar código o cargar "
+                         "contenido arbitrario en el dispositivo en vez de navegar a una página web."],
+            "puntuacion_riesgo": 6,
+        }
 
     url_normalizada = url if "://" in url else "http://" + url
 

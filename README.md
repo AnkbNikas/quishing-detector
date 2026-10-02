@@ -65,6 +65,7 @@ python3 qr_forense.py foto_qr.jpg --whois
 - 🏦 Suplantación de marcas habituales (DGT, Correos, bancos, mensajería...) — lista ampliable en el propio script
 - 🕓 Antigüedad del dominio vía WHOIS (opcional, requiere internet)
 - ⚠️ Términos de presión/urgencia en la URL, incluso si están ocultos tras un escape porcentual en la ruta
+- 💣 Esquemas peligrosos (`javascript:`, `data:`, `vbscript:`, `file:`, `blob:`, `intent:`) que ejecutan código o cargan contenido arbitrario — riesgo ALTO directo
 
 ## Normalización de la URL antes de analizarla
 
