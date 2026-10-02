@@ -33,7 +33,7 @@ $ python3 qr_forense.py pegatina_parquimetro.jpg
 Hallazgos:
 - El dominio menciona 'dgt' pero no coincide con ningún dominio oficial
   conocido (dgt.es, sede.dgt.gob.es). Posible suplantación de marca.
-- Contiene términos asociados a presión/urgencia: tasa, pago, multa.
+- Contiene términos asociados a presión/urgencia: pago, multa, tasa.
 ```
 
 ## Instalación

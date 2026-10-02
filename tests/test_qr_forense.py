@@ -556,494 +556,69 @@ class TestPlegarDiacriticos(unittest.TestCase):
         self.assertEqual(qr_forense.plegar_diacriticos("bloqueado"), "bloqueado")
 
 
-class TestPalabrasDeUrgenciaEnCheco(unittest.TestCase):
-    """La comprobación 8 también busca las palabras de urgencia del bloque
-    checo de PALABRAS_ALERTA_POR_IDIOMA, plegando diacríticos en ambos lados
-    de la comparación, para detectar la palabra tanto si el QR la lleva con
-    su diacrítico como si lo pierde al escribirla (p. ej. en una URL sin
-    tildes)."""
-
-    def test_palabra_checa_con_diacritico_se_detecta(self):
-        resultado = qr_forense.analizar_url("https://e.test/ucet-zablokovaný")
-        self.assertEqual(
-            resultado["hallazgos"],
-            ["Contiene términos asociados a presión/urgencia: zablokovaný."],
-        )
-
-    def test_palabra_checa_sin_diacritico_tambien_se_detecta(self):
-        resultado = qr_forense.analizar_url("https://e.test/ucet-zablokovany")
-        self.assertEqual(
-            resultado["hallazgos"],
-            ["Contiene términos asociados a presión/urgencia: zablokovaný."],
-        )
-
-    def test_palabra_parecida_no_coincide(self):
-        resultado = qr_forense.analizar_url("https://e.test/zablokovat-ucet")
-        self.assertEqual(
-            resultado["hallazgos"],
-            ["No se han detectado patrones sospechosos estructurales en la URL."],
-        )
-
-
-class TestPalabrasDeUrgenciaEnDanes(unittest.TestCase):
-    """La comprobación 8 también busca las palabras de urgencia del bloque
-    danés de PALABRAS_ALERTA_POR_IDIOMA, plegando diacríticos en ambos lados
-    de la comparación, para detectar la palabra tanto si el QR la lleva con
-    su diacrítico como si lo pierde al escribirla (p. ej. en una URL sin
-    tildes)."""
-
-    def test_palabra_danesa_con_diacritico_se_detecta(self):
-        resultado = qr_forense.analizar_url("https://e.test/konto-spærret")
-        self.assertEqual(
-            resultado["hallazgos"],
-            ["Contiene términos asociados a presión/urgencia: spærret."],
-        )
-
-    def test_palabra_danesa_sin_diacritico_tambien_se_detecta(self):
-        resultado = qr_forense.analizar_url("https://e.test/konto-spaerret")
-        self.assertEqual(
-            resultado["hallazgos"],
-            ["Contiene términos asociados a presión/urgencia: spærret."],
-        )
-
-    def test_palabra_parecida_no_coincide(self):
-        resultado = qr_forense.analizar_url("https://e.test/konto-spaerre")
-        self.assertEqual(
-            resultado["hallazgos"],
-            ["No se han detectado patrones sospechosos estructurales en la URL."],
-        )
-
-
-class TestPalabrasDeUrgenciaEnAleman(unittest.TestCase):
-    """La comprobación 8 también busca las palabras de urgencia del bloque
-    alemán de PALABRAS_ALERTA_POR_IDIOMA, plegando diacríticos en ambos lados
-    de la comparación, para detectar la palabra tanto si el QR la lleva con
-    su diacrítico como si lo pierde al escribirla (p. ej. en una URL sin
-    tildes)."""
-
-    def test_palabra_alemana_con_diacritico_se_detecta(self):
-        resultado = qr_forense.analizar_url("https://e.test/zahlungsrückstand")
-        self.assertEqual(
-            resultado["hallazgos"],
-            ["Contiene términos asociados a presión/urgencia: zahlungsruckstand."],
-        )
-
-    def test_palabra_alemana_sin_diacritico_tambien_se_detecta(self):
-        resultado = qr_forense.analizar_url("https://e.test/zahlungsruckstand")
-        self.assertEqual(
-            resultado["hallazgos"],
-            ["Contiene términos asociados a presión/urgencia: zahlungsruckstand."],
-        )
-
-    def test_palabra_parecida_no_coincide(self):
-        resultado = qr_forense.analizar_url("https://e.test/zahlungsverzoegerung")
-        self.assertEqual(
-            resultado["hallazgos"],
-            ["No se han detectado patrones sospechosos estructurales en la URL."],
-        )
-
-
-class TestPalabrasDeUrgenciaEnEstonio(unittest.TestCase):
-    """La comprobación 8 también busca las palabras de urgencia del bloque
-    estonio de PALABRAS_ALERTA_POR_IDIOMA. Ninguna de esas cinco palabras
-    lleva diacrítico en su grafía habitual, así que no hace falta una
-    variante plegada para detectarlas."""
-
-    def test_palabra_estonia_se_detecta(self):
-        resultado = qr_forense.analizar_url("https://e.test/konto-blokeeritud")
-        self.assertEqual(
-            resultado["hallazgos"],
-            ["Contiene términos asociados a presión/urgencia: blokeeritud."],
-        )
-
-    def test_palabra_parecida_no_coincide(self):
-        resultado = qr_forense.analizar_url("https://e.test/konto-blokeerimine")
-        self.assertEqual(
-            resultado["hallazgos"],
-            ["No se han detectado patrones sospechosos estructurales en la URL."],
-        )
-
-
-class TestPalabrasDeUrgenciaEnFines(unittest.TestCase):
-    """La comprobación 8 también busca las palabras de urgencia del bloque
-    finés de PALABRAS_ALERTA_POR_IDIOMA, plegando diacríticos en ambos lados
-    de la comparación, para detectar la palabra tanto si el QR la lleva con
-    su diacrítico como si lo pierde al escribirla (p. ej. en una URL sin
-    tildes)."""
-
-    def test_palabra_finesa_con_diacritico_se_detecta(self):
-        resultado = qr_forense.analizar_url("https://e.test/factura-eräpäivä")
-        self.assertEqual(
-            resultado["hallazgos"],
-            ["Contiene términos asociados a presión/urgencia: eräpäivä."],
-        )
-
-    def test_palabra_finesa_sin_diacritico_tambien_se_detecta(self):
-        resultado = qr_forense.analizar_url("https://e.test/factura-erapaiva")
-        self.assertEqual(
-            resultado["hallazgos"],
-            ["Contiene términos asociados a presión/urgencia: eräpäivä."],
-        )
-
-    def test_palabra_parecida_no_coincide(self):
-        resultado = qr_forense.analizar_url("https://e.test/factura-paiva")
-        self.assertEqual(
-            resultado["hallazgos"],
-            ["No se han detectado patrones sospechosos estructurales en la URL."],
-        )
-
-
-class TestPalabrasDeUrgenciaEnFrances(unittest.TestCase):
-    """La comprobación 8 también busca las palabras de urgencia del bloque
-    francés de PALABRAS_ALERTA_POR_IDIOMA, plegando diacríticos en ambos
-    lados de la comparación, para detectar la palabra tanto si el QR la
-    lleva con su diacrítico como si lo pierde al escribirla (p. ej. en una
-    URL sin tildes)."""
-
-    def test_palabra_francesa_con_diacritico_se_detecta(self):
-        resultado = qr_forense.analizar_url("https://e.test/facture-impayé")
-        self.assertEqual(
-            resultado["hallazgos"],
-            ["Contiene términos asociados a presión/urgencia: impayé."],
-        )
-
-    def test_palabra_francesa_sin_diacritico_tambien_se_detecta(self):
-        resultado = qr_forense.analizar_url("https://e.test/facture-impaye")
-        self.assertEqual(
-            resultado["hallazgos"],
-            ["Contiene términos asociados a presión/urgencia: impayé."],
-        )
-
-    def test_palabra_parecida_no_coincide(self):
-        resultado = qr_forense.analizar_url("https://e.test/facture-paye")
-        self.assertEqual(
-            resultado["hallazgos"],
-            ["No se han detectado patrones sospechosos estructurales en la URL."],
-        )
-
-
-class TestPalabrasDeUrgenciaEnCroata(unittest.TestCase):
-    """La comprobación 8 también busca las palabras de urgencia del bloque
-    croata de PALABRAS_ALERTA_POR_IDIOMA. Ninguna de esas tres palabras
-    lleva diacrítico en su grafía habitual, así que no hace falta una
-    variante plegada para detectarlas."""
-
-    def test_palabra_croata_se_detecta(self):
-        resultado = qr_forense.analizar_url("https://e.test/cuenta-kazna")
-        self.assertEqual(
-            resultado["hallazgos"],
-            ["Contiene términos asociados a presión/urgencia: kazna."],
-        )
-
-    def test_palabra_parecida_no_coincide(self):
-        resultado = qr_forense.analizar_url("https://e.test/kaznjenik-buscado")
-        self.assertEqual(
-            resultado["hallazgos"],
-            ["No se han detectado patrones sospechosos estructurales en la URL."],
-        )
-
-
-class TestPalabrasDeUrgenciaEnHungaro(unittest.TestCase):
-    """La comprobación 8 también busca las palabras de urgencia del bloque
-    húngaro de PALABRAS_ALERTA_POR_IDIOMA, plegando diacríticos en ambos
-    lados de la comparación, para detectar la palabra tanto si el QR la
-    lleva con su diacrítico como si lo pierde al escribirla (p. ej. en una
-    URL sin tildes)."""
-
-    def test_palabra_hungara_con_diacritico_se_detecta(self):
-        resultado = qr_forense.analizar_url("https://e.test/ertesites-bírság")
-        self.assertEqual(
-            resultado["hallazgos"],
-            ["Contiene términos asociados a presión/urgencia: bírság."],
-        )
-
-    def test_palabra_hungara_sin_diacritico_tambien_se_detecta(self):
-        resultado = qr_forense.analizar_url("https://e.test/ertesites-birsag")
-        self.assertEqual(
-            resultado["hallazgos"],
-            ["Contiene términos asociados a presión/urgencia: bírság."],
-        )
-
-    def test_palabra_parecida_no_coincide(self):
-        resultado = qr_forense.analizar_url("https://e.test/birosagi-ugy")
-        self.assertEqual(
-            resultado["hallazgos"],
-            ["No se han detectado patrones sospechosos estructurales en la URL."],
-        )
-
-
-class TestPalabrasDeUrgenciaEnItaliano(unittest.TestCase):
-    """La comprobación 8 también busca las palabras de urgencia del bloque
-    italiano de PALABRAS_ALERTA_POR_IDIOMA, plegando diacríticos en ambos
-    lados de la comparación, para detectar la palabra tanto si el QR la
-    lleva con su diacrítico como si lo pierde al escribirla (p. ej. en una
-    URL sin tildes)."""
-
-    def test_palabra_italiana_con_diacritico_se_detecta(self):
-        resultado = qr_forense.analizar_url("https://e.test/cuenta-morosità")
-        self.assertEqual(
-            resultado["hallazgos"],
-            ["Contiene términos asociados a presión/urgencia: morosità."],
-        )
-
-    def test_palabra_italiana_sin_diacritico_tambien_se_detecta(self):
-        resultado = qr_forense.analizar_url("https://e.test/cuenta-morosita")
-        self.assertEqual(
-            resultado["hallazgos"],
-            ["Contiene términos asociados a presión/urgencia: morosità."],
-        )
-
-    def test_palabra_parecida_no_coincide(self):
-        resultado = qr_forense.analizar_url("https://e.test/cliente-moroso")
-        self.assertEqual(
-            resultado["hallazgos"],
-            ["No se han detectado patrones sospechosos estructurales en la URL."],
-        )
-
-
-class TestPalabrasDeUrgenciaEnLituano(unittest.TestCase):
-    """La comprobación 8 también busca las palabras de urgencia del bloque
-    lituano de PALABRAS_ALERTA_POR_IDIOMA, plegando diacríticos en ambos
-    lados de la comparación, para detectar la palabra tanto si el QR la
-    lleva con su diacrítico como si lo pierde al escribirla (p. ej. en una
-    URL sin tildes)."""
-
-    def test_palabra_lituana_con_diacritico_se_detecta(self):
-        resultado = qr_forense.analizar_url("https://e.test/paskyra-užblokuota")
-        self.assertEqual(
-            resultado["hallazgos"],
-            ["Contiene términos asociados a presión/urgencia: užblokuota."],
-        )
-
-    def test_palabra_lituana_sin_diacritico_tambien_se_detecta(self):
-        resultado = qr_forense.analizar_url("https://e.test/paskyra-uzblokuota")
-        self.assertEqual(
-            resultado["hallazgos"],
-            ["Contiene términos asociados a presión/urgencia: užblokuota."],
-        )
-
-    def test_palabra_parecida_no_coincide(self):
-        resultado = qr_forense.analizar_url("https://e.test/paskyra-blokuota")
-        self.assertEqual(
-            resultado["hallazgos"],
-            ["No se han detectado patrones sospechosos estructurales en la URL."],
-        )
-
-
-class TestPalabrasDeUrgenciaEnNeerlandes(unittest.TestCase):
-    """La comprobación 8 también busca las palabras de urgencia del bloque
-    neerlandés de PALABRAS_ALERTA_POR_IDIOMA. Ninguna de esas seis palabras
-    lleva diacrítico en su grafía habitual, así que no hace falta una
-    variante plegada para detectarlas."""
-
-    def test_palabra_neerlandesa_se_detecta(self):
-        resultado = qr_forense.analizar_url("https://e.test/betaal-uw-aanmaning")
-        self.assertEqual(
-            resultado["hallazgos"],
-            ["Contiene términos asociados a presión/urgencia: aanmaning."],
-        )
-
-    def test_palabra_parecida_no_coincide(self):
-        resultado = qr_forense.analizar_url("https://e.test/vriendelijke-aanmaan-herinnering")
-        self.assertEqual(
-            resultado["hallazgos"],
-            ["No se han detectado patrones sospechosos estructurales en la URL."],
-        )
-
-
-class TestPalabrasDeUrgenciaEnNoruego(unittest.TestCase):
-    """La comprobación 8 también busca las palabras de urgencia del bloque
-    noruego de PALABRAS_ALERTA_POR_IDIOMA. Ninguna de esas cinco palabras
-    lleva diacrítico en su grafía habitual, así que no hace falta una
-    variante plegada para detectarlas."""
-
-    def test_palabra_noruega_se_detecta(self):
-        resultado = qr_forense.analizar_url("https://e.test/konto-sperret")
-        self.assertEqual(
-            resultado["hallazgos"],
-            ["Contiene términos asociados a presión/urgencia: sperret."],
-        )
-
-    def test_palabra_parecida_no_coincide(self):
-        resultado = qr_forense.analizar_url("https://e.test/konto-sperre")
-        self.assertEqual(
-            resultado["hallazgos"],
-            ["No se han detectado patrones sospechosos estructurales en la URL."],
-        )
-
-
-class TestPalabrasDeUrgenciaEnPolaco(unittest.TestCase):
-    """La comprobación 8 también busca las palabras de urgencia del bloque
-    polaco de PALABRAS_ALERTA_POR_IDIOMA, plegando diacríticos en ambos
-    lados de la comparación, para detectar la palabra tanto si el QR la
-    lleva con su diacrítico como si lo pierde al escribirla (p. ej. en una
-    URL sin tildes)."""
-
-    def test_palabra_polaca_con_diacritico_se_detecta(self):
-        resultado = qr_forense.analizar_url("https://e.test/konto-zaległość")
-        self.assertEqual(
-            resultado["hallazgos"],
-            ["Contiene términos asociados a presión/urgencia: zaległość."],
-        )
-
-    def test_palabra_polaca_sin_diacritico_tambien_se_detecta(self):
-        resultado = qr_forense.analizar_url("https://e.test/konto-zaleglosc")
-        self.assertEqual(
-            resultado["hallazgos"],
-            ["Contiene términos asociados a presión/urgencia: zaległość."],
-        )
-
-    def test_palabra_parecida_no_coincide(self):
-        resultado = qr_forense.analizar_url("https://e.test/zalegania-platnosci")
-        self.assertEqual(
-            resultado["hallazgos"],
-            ["No se han detectado patrones sospechosos estructurales en la URL."],
-        )
-
-
-class TestPalabrasDeUrgenciaEnPortugues(unittest.TestCase):
-    """La comprobación 8 también busca las palabras de urgencia del bloque
-    portugués de PALABRAS_ALERTA_POR_IDIOMA, plegando diacríticos en ambos
-    lados de la comparación, para detectar la palabra tanto si el QR la
-    lleva con su diacrítico como si lo pierde al escribirla (p. ej. en una
-    URL sin tildes)."""
-
-    def test_palabra_portuguesa_con_diacritico_se_detecta(self):
-        resultado = qr_forense.analizar_url("https://e.test/taxa-alfândega")
-        self.assertEqual(
-            resultado["hallazgos"],
-            ["Contiene términos asociados a presión/urgencia: alfândega."],
-        )
-
-    def test_palabra_portuguesa_sin_diacritico_tambien_se_detecta(self):
-        resultado = qr_forense.analizar_url("https://e.test/taxa-alfandega")
-        self.assertEqual(
-            resultado["hallazgos"],
-            ["Contiene términos asociados a presión/urgencia: alfândega."],
-        )
-
-    def test_palabra_parecida_no_coincide(self):
-        resultado = qr_forense.analizar_url("https://e.test/alfandegueiro")
-        self.assertEqual(
-            resultado["hallazgos"],
-            ["No se han detectado patrones sospechosos estructurales en la URL."],
-        )
-
-
-class TestPalabrasDeUrgenciaEnRumano(unittest.TestCase):
-    """La comprobación 8 también busca las palabras de urgencia del bloque
-    rumano de PALABRAS_ALERTA_POR_IDIOMA, plegando diacríticos en ambos
-    lados de la comparación, para detectar la palabra tanto si el QR la
-    lleva con su diacrítico como si lo pierde al escribirla (p. ej. en una
-    URL sin tildes)."""
-
-    def test_palabra_rumana_con_diacritico_se_detecta(self):
-        resultado = qr_forense.analizar_url("https://e.test/debitor-somație")
-        self.assertEqual(
-            resultado["hallazgos"],
-            ["Contiene términos asociados a presión/urgencia: somație."],
-        )
-
-    def test_palabra_rumana_sin_diacritico_tambien_se_detecta(self):
-        resultado = qr_forense.analizar_url("https://e.test/debitor-somatie")
-        self.assertEqual(
-            resultado["hallazgos"],
-            ["Contiene términos asociados a presión/urgencia: somație."],
-        )
-
-    def test_palabra_parecida_no_coincide(self):
-        resultado = qr_forense.analizar_url("https://e.test/debitor-somat")
-        self.assertEqual(
-            resultado["hallazgos"],
-            ["No se han detectado patrones sospechosos estructurales en la URL."],
-        )
-
-
-class TestPalabrasDeUrgenciaEnEslovaco(unittest.TestCase):
-    """La comprobación 8 también busca las palabras de urgencia del bloque
-    eslovaco de PALABRAS_ALERTA_POR_IDIOMA, plegando diacríticos en ambos
-    lados de la comparación, para detectar la palabra tanto si el QR la
-    lleva con su diacrítico como si lo pierde al escribirla (p. ej. en una
-    URL sin tildes)."""
-
-    def test_palabra_eslovaca_con_diacritico_se_detecta(self):
-        resultado = qr_forense.analizar_url("https://e.test/aviso-exekúcia")
-        self.assertEqual(
-            resultado["hallazgos"],
-            ["Contiene términos asociados a presión/urgencia: exekúcia."],
-        )
-
-    def test_palabra_eslovaca_sin_diacritico_tambien_se_detecta(self):
-        resultado = qr_forense.analizar_url("https://e.test/aviso-exekucia")
-        self.assertEqual(
-            resultado["hallazgos"],
-            ["Contiene términos asociados a presión/urgencia: exekúcia."],
-        )
-
-    def test_palabra_parecida_no_coincide(self):
-        resultado = qr_forense.analizar_url("https://e.test/aviso-exekutor")
-        self.assertEqual(
-            resultado["hallazgos"],
-            ["No se han detectado patrones sospechosos estructurales en la URL."],
-        )
-
-
-class TestPalabrasDeUrgenciaEnEsloveno(unittest.TestCase):
-    """La comprobación 8 también busca las palabras de urgencia del bloque
-    esloveno de PALABRAS_ALERTA_POR_IDIOMA, plegando diacríticos en ambos
-    lados de la comparación, para detectar la palabra tanto si el QR la
-    lleva con su diacrítico como si lo pierde al escribirla (p. ej. en una
-    URL sin tildes)."""
-
-    def test_palabra_eslovena_con_diacritico_se_detecta(self):
-        resultado = qr_forense.analizar_url("https://e.test/notificacion-izvršba")
-        self.assertEqual(
-            resultado["hallazgos"],
-            ["Contiene términos asociados a presión/urgencia: izvršba."],
-        )
-
-    def test_palabra_eslovena_sin_diacritico_tambien_se_detecta(self):
-        resultado = qr_forense.analizar_url("https://e.test/notificacion-izvrsba")
-        self.assertEqual(
-            resultado["hallazgos"],
-            ["Contiene términos asociados a presión/urgencia: izvršba."],
-        )
-
-    def test_palabra_parecida_no_coincide(self):
-        resultado = qr_forense.analizar_url("https://e.test/izvrsiti-dejanje")
-        self.assertEqual(
-            resultado["hallazgos"],
-            ["No se han detectado patrones sospechosos estructurales en la URL."],
-        )
-
-
-class TestPalabrasDeUrgenciaEnSueco(unittest.TestCase):
-    """La comprobación 8 también busca las palabras de urgencia del bloque
-    sueco de PALABRAS_ALERTA_POR_IDIOMA, plegando diacríticos en ambos
-    lados de la comparación, para detectar la palabra tanto si el QR la
-    lleva con su diacrítico como si lo pierde al escribirla (p. ej. en una
-    URL sin tildes)."""
-
-    def test_palabra_sueca_con_diacritico_se_detecta(self):
-        resultado = qr_forense.analizar_url("https://e.test/konto-spärrat")
-        self.assertEqual(
-            resultado["hallazgos"],
-            ["Contiene términos asociados a presión/urgencia: spärrat."],
-        )
-
-    def test_palabra_sueca_sin_diacritico_tambien_se_detecta(self):
-        resultado = qr_forense.analizar_url("https://e.test/konto-sparrat")
-        self.assertEqual(
-            resultado["hallazgos"],
-            ["Contiene términos asociados a presión/urgencia: spärrat."],
-        )
-
-    def test_palabra_parecida_no_coincide(self):
-        resultado = qr_forense.analizar_url("https://e.test/konto-sparra")
-        self.assertEqual(
-            resultado["hallazgos"],
-            ["No se han detectado patrones sospechosos estructurales en la URL."],
-        )
+CASOS_PALABRAS_DE_URGENCIA_MULTILINGUE = [
+    (idioma, palabra, variante)
+    for idioma, palabras in qr_forense.PALABRAS_ALERTA_POR_IDIOMA.items()
+    for palabra in palabras
+    for variante in {palabra, qr_forense.plegar_diacriticos(palabra)}
+]
+
+
+class TestPalabrasDeUrgenciaMultilingue(unittest.TestCase):
+    """La comprobación 8 también busca, en la ruta o en el host, cada
+    palabra de cada bloque de idioma de PALABRAS_ALERTA_POR_IDIOMA, tanto si
+    el QR la lleva con sus diacríticos como si los pierde al escribirla
+    (p. ej. en una URL sin tildes). En vez de una clase de prueba por
+    idioma, una sola tabla recorre todas las palabras de todos los bloques
+    (CASOS_PALABRAS_DE_URGENCIA_MULTILINGUE, construida a partir del propio
+    diccionario), para que añadir un idioma o una palabra no requiera
+    añadir una clase de prueba nueva."""
+
+    def test_cada_palabra_se_detecta_con_y_sin_diacriticos(self):
+        for idioma, palabra, variante in CASOS_PALABRAS_DE_URGENCIA_MULTILINGUE:
+            with self.subTest(idioma=idioma, palabra=palabra, variante=variante):
+                resultado = qr_forense.analizar_url(f"https://e.test/aviso-{variante}")
+                hallazgos_de_urgencia = [
+                    h for h in resultado["hallazgos"]
+                    if h.startswith("Contiene términos asociados a presión/urgencia:")
+                ]
+                self.assertEqual(len(hallazgos_de_urgencia), 1)
+                self.assertIn(palabra, _palabras_de_urgencia(hallazgos_de_urgencia[0]))
+
+
+class TestColisionesBenignasDePalabrasCortas(unittest.TestCase):
+    """Las palabras de alerta se buscan como subcadena del host o de la
+    ruta, no como palabra completa (comprobación 8), así que una palabra de
+    cinco letras o menos de PALABRAS_ALERTA_POR_IDIOMA podría coincidir por
+    accidente dentro de una palabra corriente sin relación con avisos de
+    pago. Esta prueba comprueba, para cada una de esas palabras cortas
+    ("trahv" en estonio, "kazna" y "ovrha" en croata, "boete" en
+    neerlandés), una palabra corriente en español que la contiene como
+    subcadena, y que no debe disparar el hallazgo de presión/urgencia. Si
+    alguna de las cuatro coincidiera, habría que quitarla de su lista en vez
+    de debilitar esta prueba — pero ninguna lo hace con la palabra corriente
+    elegida aquí."""
+
+    def _no_genera_el_hallazgo_de_urgencia(self, ruta):
+        resultado = qr_forense.analizar_url(f"https://e.test/{ruta}")
+        self.assertFalse(any(
+            h.startswith("Contiene términos asociados a presión/urgencia:")
+            for h in resultado["hallazgos"]
+        ))
+
+    def test_trahv_no_coincide_dentro_de_extrahotelero(self):
+        # "extrahotelero" (alojamiento turístico no hotelero) contiene
+        # "trah" pero no "trahv": a la "h" le sigue una "o", no una "v".
+        self._no_genera_el_hallazgo_de_urgencia("alojamiento-extrahotelero")
+
+    def test_kazna_no_coincide_dentro_de_manzana(self):
+        self._no_genera_el_hallazgo_de_urgencia("tarta-de-manzana")
+
+    def test_ovrha_no_coincide_dentro_de_sobrehumano(self):
+        self._no_genera_el_hallazgo_de_urgencia("esfuerzo-sobrehumano")
+
+    def test_boete_no_coincide_dentro_de_poeta(self):
+        self._no_genera_el_hallazgo_de_urgencia("biografia-del-poeta")
 
 
 class TestDecodificarQrSinOpencv(unittest.TestCase):
