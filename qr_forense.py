@@ -246,6 +246,30 @@ PALABRAS_ALERTA_POR_IDIOMA = {
         # girado a posteriori (entrada "naheffing", Woorden.org).
         "naheffing",
     ],
+    # Noruego. Fuentes: Det Norske Akademis ordbok (naob.no) y Bokmålsordboka
+    # (ordbokene.no); Forbrukertilsynet (forbrukertilsynet.no) junto con el
+    # reglamento de cobro de deudas vía Lovdata (lovdata.no); Finans Norge
+    # (finansnorge.no); y Tolletaten (toll.no), consultadas el 2026-09-24.
+    # Ninguna de estas cinco palabras lleva diacrítico en su grafía habitual.
+    "no": [
+        # forfallsdato: fecha de vencimiento en la que debe satisfacerse una
+        # obligación contractual (entrada "forfall"/"forfallsdag",
+        # Bokmålsordboka y Det Norske Akademis ordbok).
+        "forfallsdato",
+        # inkasso: cobro de una deuda (entrada "inkasso", Det Norske
+        # Akademis ordbok).
+        "inkasso",
+        # purregebyr: recargo por una carta de aviso de pago enviada al
+        # menos catorce días tras el vencimiento (Forbrukertilsynet y el
+        # reglamento de cobro de deudas, vía Lovdata).
+        "purregebyr",
+        # sperret: bloqueado, p. ej. una cuenta, una tarjeta o una conexión
+        # (entrada "sperre", Det Norske Akademis ordbok y Finans Norge).
+        "sperret",
+        # tollavgift: arancel aduanero sobre mercancías que cruzan la
+        # frontera aduanera (Tolletaten, toll.no).
+        "tollavgift",
+    ],
 }
 
 MARCAS_HABITUALMENTE_SUPLANTADAS = {
