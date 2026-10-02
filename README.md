@@ -76,15 +76,23 @@ que lo haría un navegador, para que un disfraz en la propia URL no engañe
 al análisis:
 
 - se recortan los espacios en blanco del contenido decodificado del QR;
-- una URL que `urlsplit()` no puede interpretar se trata como "URL
-  malformada" (0 puntos), en vez de interrumpir el programa con un
-  traceback; un host vacío (`https://` sin nada detrás), o que solo
-  decodifica a un carácter que ningún navegador acepta en un host (p. ej.
-  `%2f` → `/`), se trata igual pero suma +3: sigue siendo un enlace activo
-  que no lleva a ningún destino real, no solo un fallo de análisis;
-- para `http:` o `https:`, cualquier mezcla de `/` y `\` justo después del
-  esquema que incluya al menos una `\` (p. ej. `https:/\evil.top/`) se trata
-  como inicio de la autoridad, tal y como hacen los navegadores con `//`;
+- si `urlsplit()` rechaza la URL con un `ValueError` (p. ej. por el plegado
+  NFKC que la librería estándar aplica al netloc para detectar un carácter
+  Unicode que se pliegue a un delimitador sin serlo literalmente, como el
+  signo de número de ancho completo `＃` en `https://dgt.es＃@evil.top/`; o
+  por un literal IPv6 sin cerrar), se reconstruye la autoridad igual que lo
+  haría un navegador: el host es todo lo posterior al último `@` literal,
+  antes del primer `/`, `?` o `#` literal. Solo si ni siquiera esa lectura
+  es posible se trata como "URL malformada", y con +3, no con 0 — un enlace
+  que no se puede analizar nunca debe parecer de riesgo BAJO. Un host vacío
+  (`https://` sin nada detrás), o que solo decodifica a un carácter que
+  ningún navegador acepta en un host (p. ej. `%2f` → `/`), se puntúa igual,
+  por la misma razón: sigue siendo un enlace activo que no lleva a ningún
+  destino real, no solo un fallo de análisis;
+- para `http:` o `https:`, cualquier secuencia de una o más `/` y `\` justo
+  después del esquema (p. ej. `https:/evil.top/`, `https:///evil.top/` o la
+  mezcla `https:/\evil.top/`) se trata como inicio de la autoridad, tal y
+  como hace un navegador con `//`;
 - un `\` antes del host se trata como `/`, tal y como hacen los
   navegadores, y además genera el hallazgo anterior;
 - el host se decodifica si contiene secuencias de escape porcentual
@@ -116,6 +124,7 @@ No hace falta tener OpenCV instalado para ejecutarlas — `decodificar_qr` solo 
 - Es un análisis **heurístico y estructural**, no consulta listas negras de phishing en tiempo real ni analiza el contenido real de la web de destino.
 - Puntuación baja **no** garantiza que el enlace sea seguro. Puntuación alta **no** es prueba definitiva de phishing — son señales de alerta, no un veredicto.
 - La lista de marcas suplantadas es orientativa y ampliable; no cubre todas las posibles víctimas de suplantación.
+- Los términos de presión/urgencia se buscan como subcadena del host o de la ruta, no como palabra completa — una limitación heredada del propio diseño de upstream, no de los idiomas añadidos: por ejemplo, `multa` (de la lista original, sin modificar) es subcadena de la palabra corriente «simultáneamente». No se ha cambiado a una coincidencia por palabra completa para no alterar la puntuación de los ejemplos de referencia.
 
 ## Licencia
 

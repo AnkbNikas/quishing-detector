@@ -18,6 +18,7 @@ import argparse
 import json
 import re
 import sys
+import types
 import unicodedata
 import urllib.parse
 from datetime import datetime, timezone
@@ -54,11 +55,16 @@ PALABRAS_ALERTA_POR_IDIOMA = {
         # nedoplatek: importe pendiente de pago, lo que queda por abonar
         # (entrada "nedoplatek", SSČ y SSJČ).
         "nedoplatek",
-        # neuhrazený: no abonado, impagado (negación de la entrada
-        # "uhrazený").
-        "neuhrazený",
-        # zablokovaný: bloqueado (entrada "zablokovaný").
-        "zablokovaný",
+        # neuhrazen: raíz de "neuhrazený" (no abonado, impagado; negación de
+        # la entrada "uhrazený"), para que también coincida con sus formas
+        # flexionadas (p. ej. "neuhrazená", "neuhrazeno"), no solo con la
+        # forma de diccionario.
+        "neuhrazen",
+        # zablokovan: raíz de "zablokovaný" (bloqueado; entrada
+        # "zablokovaný"), para que también coincida con sus formas
+        # flexionadas (p. ej. "zablokovaná", "zablokováno"), no solo con la
+        # forma de diccionario.
+        "zablokovan",
     ],
     # Danés. Fuentes: Den Danske Ordbog, Det Danske Sprog- og
     # Litteraturselskab (ordnet.dk/ddo), consultada el 2026-09-24; y
@@ -154,17 +160,19 @@ PALABRAS_ALERTA_POR_IDIOMA = {
         # frontera aduanera (Tulli, tulli.fi).
         "tullimaksu",
     ],
-    # Francés. Fuentes: CNRTL, Portail lexical (cnrtl.fr); Larousse,
-    # Dictionnaire de français (larousse.fr); y Le Robert, Dictionnaire
-    # (dictionnaire.lerobert.com), consultadas el 2026-09-24.
+    # Francés. Fuentes: CNRTL, Portail lexical (cnrtl.fr), y Larousse,
+    # Dictionnaire de français (larousse.fr), consultadas el 2026-09-24. No
+    # se incluye "pénalité" (sanción, recargo por demora en el pago; entrada
+    # "pénalité", Larousse y Le Robert): es también la palabra corriente
+    # para una sanción deportiva (p. ej. un penalti o una pénalité de rugby
+    # en una crónica de deporte), un uso habitual y ajeno a los avisos de
+    # pago que esta lista busca, con el que colisionaría con demasiada
+    # frecuencia en contenido benigno.
     "fr": [
         # douane: aduana (entrada "douane", CNRTL y Larousse).
         "douane",
         # impayé: no abonado, impagado (entrada "impayé", Larousse y CNRTL).
         "impayé",
-        # pénalité: sanción, recargo por demora en el pago (entrada
-        # "pénalité", Larousse y Le Robert).
-        "pénalité",
     ],
     # Croata. Fuente: Hrvatski jezični portal (hjp.znanje.hr), consultada el
     # 2026-09-24. Ninguna de estas tres palabras lleva diacrítico en su
@@ -449,12 +457,23 @@ def interpretar_ipv4(host: str):
     return ip
 
 
+# Más cifras de las que necesitaría nunca un componente válido: 2**32 - 1,
+# el mayor valor que interpretar_ipv4 puede llegar a aceptar, ya ocupa como
+# mucho 11 cifras (en octal, su base menos compacta de las tres). Por debajo
+# del límite de conversión de cadena a entero que Python 3.11+ aplica por
+# motivos de seguridad (PEP 2022; 4300 cifras por defecto), para rechazar un
+# componente larguísimo por su longitud, sin intentar convertirlo.
+LIMITE_CIFRAS_COMPONENTE_IPV4 = 16
+
+
 def interpretar_numero_ipv4(componente: str):
     """Interpreta un componente entre puntos de un host como un número para
     interpretar_ipv4: decimal si no lleva prefijo, hexadecimal con el
     prefijo '0x'/'0X', u octal con un único '0' inicial (y al menos dos
     caracteres). Devuelve el valor como entero, o None si el componente no
-    es válido en ninguna de esas tres bases."""
+    es válido en ninguna de esas tres bases, o si tiene más cifras que
+    LIMITE_CIFRAS_COMPONENTE_IPV4 — ninguna forma válida las necesita, y así
+    se evita convertir a entero una cadena larguísima."""
     base = 10
     resto = componente
     if len(componente) >= 2 and componente[:2].lower() == "0x":
@@ -465,10 +484,15 @@ def interpretar_numero_ipv4(componente: str):
         resto = componente[1:]
     if resto == "":
         return 0
+    if len(resto) > LIMITE_CIFRAS_COMPONENTE_IPV4:
+        return None
     cifras_validas_por_base = {8: r"^[0-7]+$", 10: r"^[0-9]+$", 16: r"^[0-9a-fA-F]+$"}
     if not re.match(cifras_validas_por_base[base], resto):
         return None
-    return int(resto, base)
+    try:
+        return int(resto, base)
+    except ValueError:
+        return None
 
 
 def ip_disfrazada_a_puntos(host: str) -> str:
@@ -540,20 +564,25 @@ def esquema_de(texto: str) -> str:
 
 
 def normalizar_barras_tras_el_esquema(texto: str) -> str:
-    """Para 'http:' o 'https:' seguido de una mezcla de '/' y '\\' que
-    incluya al menos una '\\' (p. ej. "https:/\\evil.top/"), reescribe el
-    texto con la autoridad introducida por "://", igual que hacen los
-    navegadores con los esquemas especiales: para ellos, cualquier
-    secuencia de '/' y '\\' tras el esquema introduce la autoridad, no solo
-    "//" exacto. Sin esta normalización, es_url() rechaza la URL antes de
-    que el resto del análisis pueda corregir la '\\' que quede dentro de la
-    propia autoridad. Devuelve el texto sin cambios si no empieza así."""
+    """Para 'http:' o 'https:' seguido de cualquier secuencia de una o más
+    '/' y '\\' (p. ej. "https:/evil.top/", "https:///evil.top/" o la mezcla
+    "https:/\\evil.top/"), reescribe el texto con la autoridad introducida
+    por "://", igual que hace el analizador de la especificación WHATWG URL
+    con los esquemas especiales: para ellos, cualquier secuencia de '/' y
+    '\\' tras el esquema introduce la autoridad, no solo "//" exacto, y no
+    solo cuando esa secuencia incluye una '\\'. Sin esta normalización,
+    es_url() rechaza la URL antes de que el resto del análisis pueda llegar
+    siquiera al host — por ejemplo, "https:/dgt-multas.top/pago" no pasaba
+    de ahí, y "https:///dgt-multas.top/pago" llegaba a analizarse con un
+    host vacío, en vez de con "dgt-multas.top" en ambos casos. Devuelve el
+    texto sin cambios si no empieza con 'http:' o 'https:' seguido de al
+    menos una '/' o '\\'."""
     # re.DOTALL para que "(.*)" también abarque un salto de línea interno en
     # el contenido del QR; sin él, esta expresión regular no coincidía en
     # absoluto con una URL que llevara uno, y la normalización se omitía
-    # igual que si no hubiera ninguna '\\' tras el esquema.
+    # igual que si no hubiera ninguna barra tras el esquema.
     coincide = re.match(r"^(https?):([/\\]+)(.*)$", texto, re.IGNORECASE | re.DOTALL)
-    if not coincide or "\\" not in coincide.group(2):
+    if not coincide:
         return texto
     return f"{coincide.group(1).lower()}://{coincide.group(3)}"
 
@@ -563,6 +592,47 @@ def es_url(texto: str) -> bool:
     return (bool(re.match(r"^[a-zA-Z][a-zA-Z0-9+.-]*://", texto_normalizado))
             or texto.lower().startswith("www.")
             or esquema_de(texto) in ESQUEMAS_PELIGROSOS)
+
+
+def dividir_autoridad_como_un_navegador(esquema: str, resto: str):
+    """Reconstruye la autoridad de una URL http(s) exactamente como lo haría
+    un navegador, para cuando urllib.parse.urlsplit() rechaza la URL con un
+    ValueError que no deja ningún resultado del que partir. Un navegador
+    identifica los delimitadores de una URL una sola vez, con los caracteres
+    ASCII literales '/', '?' y '#', antes de aplicar cualquier normalización
+    Unicode al host — así que esta función hace lo mismo en vez de
+    rendirse: la autoridad es todo lo anterior al primer '/', '?' o '#'
+    literal de "resto" (lo que sigue a "esquema://"), y dentro de ella el
+    host es todo lo posterior al último '@' literal (información de usuario
+    y contraseña antes, si la hay). Devuelve un objeto con los mismos
+    atributos que usa analizar_url de un SplitResult (scheme, netloc,
+    hostname, path, query), o None si ni siquiera esta lectura mínima es
+    fiable — un host que, tras aplicarla, siga sin ser puramente ASCII, o un
+    literal IPv6 sin el corchete de cierre."""
+    fin_autoridad = re.search(r"[/?#]", resto)
+    if fin_autoridad:
+        autoridad = resto[:fin_autoridad.start()]
+        resto_tras_autoridad = resto[fin_autoridad.start():]
+    else:
+        autoridad = resto
+        resto_tras_autoridad = ""
+
+    host_con_puerto = autoridad.rsplit("@", 1)[-1]
+    if host_con_puerto.startswith("["):
+        fin_literal_ipv6 = host_con_puerto.find("]")
+        if fin_literal_ipv6 == -1:
+            return None
+        host = host_con_puerto[1:fin_literal_ipv6]
+    else:
+        host = host_con_puerto.split(":", 1)[0]
+
+    if not host.isascii():
+        return None
+
+    ruta, _, consulta = resto_tras_autoridad.split("#", 1)[0].partition("?")
+    return types.SimpleNamespace(
+        scheme=esquema, netloc=autoridad, hostname=host.lower(), path=ruta, query=consulta,
+    )
 
 
 def analizar_url(url: str):
@@ -582,9 +652,10 @@ def analizar_url(url: str):
             "puntuacion_riesgo": 6,
         }
 
-    # Para http(s), los navegadores aceptan cualquier mezcla de '/' y '\\'
+    # Para http(s), los navegadores aceptan cualquier secuencia de '/' y '\\'
     # tras el esquema como inicio de la autoridad, no solo "//" exacto (p.
-    # ej. "https:/\\evil.top/" navega igual que "https://evil.top/"). Se
+    # ej. "https:/evil.top/", "https:///evil.top/" o la mezcla
+    # "https:/\\evil.top/" navegan igual que "https://evil.top/"). Se
     # normaliza antes de nada, para que el resto del análisis — incluida la
     # detección de '\\' dentro de la propia autoridad, justo abajo —
     # trabaje siempre sobre una URL con "://".
@@ -609,18 +680,36 @@ def analizar_url(url: str):
         autoridad_cruda = re.match(r"^[^/?#]*", resto).group(0)
         if "\\" in autoridad_cruda:
             contiene_backslash_antes_del_host = True
-        url_normalizada = f"{esquema}://{resto.replace(chr(92), '/')}"
+        resto = resto.replace(chr(92), "/")
+        url_normalizada = f"{esquema}://{resto}"
 
+    # urlsplit() puede rechazar una URL por lo demás navegable con un
+    # ValueError — por ejemplo, por el plegado NFKC que la propia librería
+    # estándar aplica al netloc para detectar un carácter Unicode que se
+    # pliegue a '@', ':', '#' o '?' sin serlo literalmente (p. ej. '＃', el
+    # signo de número de ancho completo U+FF03, en
+    # "https://dgt.es＃@evil.top/"), o por un literal IPv6 sin cerrar. Un
+    # navegador no vuelve a comprobar delimitadores tras ese plegado: los
+    # identifica una sola vez, con los caracteres ASCII literales, antes de
+    # aplicar cualquier normalización Unicode al host. Devolver un resultado
+    # de 0 puntos aquí escondería ese destino real tras un BAJO que parece
+    # seguro, así que se intenta reconstruir la autoridad como lo haría un
+    # navegador (dividir_autoridad_como_un_navegador) en vez de rendirse.
     try:
         partes = urllib.parse.urlsplit(url_normalizada)
         host = partes.hostname or ""
-    except ValueError as exc:
-        return {
-            "url": url,
-            "dominio": "",
-            "hallazgos": [f"URL malformada o no analizable: {exc}"],
-            "puntuacion_riesgo": 0,
-        }
+    except ValueError:
+        partes = dividir_autoridad_como_un_navegador(esquema, resto)
+        if partes is None:
+            return {
+                "url": url,
+                "dominio": "",
+                "hallazgos": ["URL malformada o no analizable: ni urlsplit() ni una lectura de "
+                             "la autoridad equivalente a la de un navegador han podido determinar "
+                             "un host."],
+                "puntuacion_riesgo": 3,
+            }
+        host = partes.hostname or ""
 
     # Un host vacío (p. ej. "https://" o "http:///login") no tiene ninguna
     # autoridad real a la que navegar. Se puntúa igual que una IP disfrazada
@@ -782,6 +871,11 @@ def analizar_url(url: str):
     # diacrítico siga encontrándose aunque el dominio reportado ya esté en
     # Punycode (p. ej. "www.spærret.com" -> "www.xn--sprret-...com").
     host_plegado = plegar_diacriticos(host_unicode.lower())
+    # palabras_alerta es la lista original de upstream, sin modificar. No se
+    # le añaden "morosidad" ni "penalización" (otras palabras españolas de
+    # ese mismo campo semántico): extender la lista española es una decisión
+    # de upstream sobre su propio idioma, no parte de esta rama, que solo
+    # añade bloques de otros idiomas en PALABRAS_ALERTA_POR_IDIOMA.
     palabras_alerta = ["pago", "payment", "multa", "fine", "verify", "verifica", "urgente",
                        "suspend", "bloqueo", "actualiza", "confirm", "aduana", "tasa"]
     palabras_alerta_multilingue = palabras_alerta + [

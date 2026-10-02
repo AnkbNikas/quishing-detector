@@ -89,14 +89,78 @@ class TestClasificarRiesgo(unittest.TestCase):
 class TestRobustezEntradaMalformada(unittest.TestCase):
     """analizar_url no debe lanzar una excepción con entradas que
     urllib.parse.urlsplit rechaza; debe devolver un hallazgo que explique
-    que la URL no se pudo analizar, en vez de dejar que el proceso se caiga."""
+    que la URL no se pudo analizar, en vez de dejar que el proceso se caiga.
+    Un literal IPv6 sin cerrar es un caso en el que ni siquiera
+    dividir_autoridad_como_un_navegador puede determinar un host (no hay
+    corchete de cierre que indique dónde termina), así que se puntúa con +3
+    y no con 0: un resultado sin destino nunca debe parecer BAJO."""
 
     def test_url_con_ipv6_sin_cerrar_no_lanza_excepcion(self):
         resultado = qr_forense.analizar_url("http://[::1")
         self.assertEqual(resultado["dominio"], "")
-        self.assertEqual(resultado["puntuacion_riesgo"], 0)
+        self.assertEqual(resultado["puntuacion_riesgo"], 3)
         self.assertEqual(len(resultado["hallazgos"]), 1)
         self.assertTrue(resultado["hallazgos"][0].startswith("URL malformada o no analizable"))
+        self.assertEqual(qr_forense.clasificar_riesgo(resultado["puntuacion_riesgo"]), "MEDIO")
+
+
+class TestDividirAutoridadComoUnNavegador(unittest.TestCase):
+    """dividir_autoridad_como_un_navegador reproduce la lectura de un
+    navegador cuando urlsplit() no puede: el host es todo lo posterior al
+    último '@' literal, antes del primer '/', '?' o '#' literal."""
+
+    def test_sin_arroba_el_host_es_toda_la_autoridad(self):
+        partes = qr_forense.dividir_autoridad_como_un_navegador("https", "dgt.es/tramite")
+        self.assertEqual(partes.hostname, "dgt.es")
+        self.assertEqual(partes.netloc, "dgt.es")
+        self.assertEqual(partes.path, "/tramite")
+
+    def test_con_arroba_el_host_es_lo_posterior_a_la_ultima(self):
+        partes = qr_forense.dividir_autoridad_como_un_navegador("https", "dgt.es＃@evil.top/")
+        self.assertEqual(partes.hostname, "evil.top")
+        self.assertEqual(partes.netloc, "dgt.es＃@evil.top")
+        self.assertEqual(partes.path, "/")
+
+    def test_con_query_y_sin_ruta(self):
+        partes = qr_forense.dividir_autoridad_como_un_navegador("https", "evil.top?a=1")
+        self.assertEqual(partes.hostname, "evil.top")
+        self.assertEqual(partes.path, "")
+        self.assertEqual(partes.query, "a=1")
+
+    def test_el_fragmento_no_se_cuela_en_la_query(self):
+        partes = qr_forense.dividir_autoridad_como_un_navegador("https", "evil.top/x?a=1#b")
+        self.assertEqual(partes.query, "a=1")
+
+    def test_literal_ipv6_cerrado(self):
+        partes = qr_forense.dividir_autoridad_como_un_navegador("http", "[::1]:8080/x")
+        self.assertEqual(partes.hostname, "::1")
+
+    def test_literal_ipv6_sin_cerrar_devuelve_none(self):
+        self.assertIsNone(qr_forense.dividir_autoridad_como_un_navegador("http", "[::1"))
+
+    def test_host_no_ascii_devuelve_none(self):
+        self.assertIsNone(qr_forense.dividir_autoridad_como_un_navegador("https", "évil.top/x"))
+
+
+class TestUrlsplitRechazaConNfkcPeroSigueAnalizandose(unittest.TestCase):
+    """Un carácter Unicode que no es '@', ':', '#' ni '?' pero que se pliega
+    a uno de ellos con NFKC (p. ej. '＃', el signo de número de ancho
+    completo U+FF03) hace que urllib.parse.urlsplit() rechace la URL con un
+    ValueError, por una comprobación de seguridad añadida en la propia
+    librería estándar. Un navegador no aplica ese plegado antes de buscar
+    los delimitadores: identifica la autoridad con los caracteres ASCII
+    literales y navega a 'evil.top', con el mismo truco del '@' que esta
+    herramienta puntúa en cualquier otro caso. Devolver 0 puntos aquí
+    escondería ese destino tras un resultado que parece seguro."""
+
+    def test_el_host_real_se_analiza_en_vez_de_devolver_cero(self):
+        resultado = qr_forense.analizar_url("https://dgt.es＃@evil.top/")
+        self.assertEqual(resultado["dominio"], "evil.top")
+        self.assertEqual(resultado["puntuacion_riesgo"], 5)
+        self.assertEqual(len(resultado["hallazgos"]), 2)
+        self.assertIn("@", resultado["hallazgos"][0])
+        self.assertIn(".top", resultado["hallazgos"][1])
+        self.assertEqual(qr_forense.clasificar_riesgo(resultado["puntuacion_riesgo"]), "MEDIO")
 
 
 class TestNormalizarContenidoQr(unittest.TestCase):
@@ -114,13 +178,13 @@ class TestNormalizarContenidoQr(unittest.TestCase):
 
 
 class TestHostVacio(unittest.TestCase):
-    """Un host vacío (p. ej. "http:///login", "https://") no tiene ninguna
+    """Un host vacío (p. ej. "https://", "http://?x") no tiene ninguna
     autoridad real a la que navegar, así que se puntúa igual que una IP
     disfrazada (+3) en vez de con 0: es en sí mismo un patrón habitual de
     enlace manipulado o incompleto, no un simple fallo de análisis."""
 
     def test_host_vacio_se_trata_como_url_malformada(self):
-        resultado = qr_forense.analizar_url("http:///login")
+        resultado = qr_forense.analizar_url("http://?x")
         self.assertEqual(resultado["dominio"], "")
         self.assertEqual(resultado["puntuacion_riesgo"], 3)
         self.assertEqual(
@@ -136,6 +200,19 @@ class TestHostVacio(unittest.TestCase):
         self.assertEqual(
             resultado["hallazgos"],
             ["URL malformada o no analizable: no contiene ningún host."],
+        )
+
+    def test_triple_barra_tras_el_esquema_resuelve_al_host_tras_las_barras(self):
+        """"http:///login" no es un host vacío: igual que en un navegador,
+        la tercera '/' no abre ninguna autoridad nueva, así que el host
+        sigue siendo "login"."""
+        resultado = qr_forense.analizar_url("http:///login")
+        self.assertEqual(resultado["dominio"], "login")
+        self.assertEqual(resultado["puntuacion_riesgo"], 1)
+        self.assertEqual(
+            resultado["hallazgos"],
+            ["Usa 'http://' sin cifrar — los datos viajan sin proteger y cualquiera en la "
+             "misma red puede leerlos o modificarlos."],
         )
 
 
@@ -297,6 +374,54 @@ class TestBarrasLaxasTrasElEsquema(unittest.TestCase):
     def test_sin_backslash_en_las_barras_no_cambia_nada(self):
         self.assertEqual(
             qr_forense.normalizar_barras_tras_el_esquema("https://dgt.es/tramite"),
+            "https://dgt.es/tramite",
+        )
+
+
+class TestSoloBarrasTrasElEsquema(unittest.TestCase):
+    """El analizador de la especificación WHATWG URL trata cualquier
+    secuencia de '/' tras 'http:' o 'https:' como introductora de la
+    autoridad, no solo "//" exacto: una única '/' o tres '/' seguidas
+    también navegan al mismo host que "://". Antes de esta prueba,
+    normalizar_barras_tras_el_esquema solo reescribía la URL cuando la
+    secuencia incluía al menos una '\\', así que "https:/host" no pasaba de
+    es_url y "https:///host" se analizaba con un host vacío, en vez de
+    llegar los dos al mismo dominio."""
+
+    def test_es_url_reconoce_una_sola_barra(self):
+        self.assertTrue(qr_forense.es_url("https:/dgt-multas.top/pago"))
+
+    def test_es_url_reconoce_tres_barras(self):
+        self.assertTrue(qr_forense.es_url("https:///dgt-multas.top/pago"))
+
+    def test_una_sola_barra_llega_al_dominio_real(self):
+        resultado = qr_forense.analizar_url("https:/dgt-multas.top/pago")
+        self.assertEqual(resultado["dominio"], "dgt-multas.top")
+        self.assertEqual(resultado["puntuacion_riesgo"], 7)
+        self.assertEqual(len(resultado["hallazgos"]), 3)
+        self.assertIn(".top", resultado["hallazgos"][0])
+        self.assertIn("suplantación de marca", resultado["hallazgos"][1])
+        self.assertIn("pago, multa", resultado["hallazgos"][2])
+
+    def test_tres_barras_llegan_al_mismo_dominio_real(self):
+        resultado = qr_forense.analizar_url("https:///dgt-multas.top/pago")
+        self.assertEqual(resultado["dominio"], "dgt-multas.top")
+        self.assertEqual(resultado["puntuacion_riesgo"], 7)
+
+    def test_cuatro_barras_tambien_llegan_al_mismo_dominio_real(self):
+        resultado = qr_forense.analizar_url("https:////dgt-multas.top/pago")
+        self.assertEqual(resultado["dominio"], "dgt-multas.top")
+        self.assertEqual(resultado["puntuacion_riesgo"], 7)
+
+    def test_normalizar_barras_una_sola_barra(self):
+        self.assertEqual(
+            qr_forense.normalizar_barras_tras_el_esquema("https:/dgt.es/tramite"),
+            "https://dgt.es/tramite",
+        )
+
+    def test_normalizar_barras_tres_barras(self):
+        self.assertEqual(
+            qr_forense.normalizar_barras_tras_el_esquema("https:///dgt.es/tramite"),
             "https://dgt.es/tramite",
         )
 
@@ -464,6 +589,23 @@ class TestIpDisfrazadaAbreviadaOMixta(unittest.TestCase):
         )
 
 
+class TestInterpretarNumeroIpv4ConComponenteDemasiadoLargo(unittest.TestCase):
+    """Un componente con muchísimas cifras no debe convertirse con int():
+    a partir de cierto número de cifras, Python 3.11+ lo rechaza con un
+    ValueError por motivos de seguridad (PEP 2022), y en cualquier caso
+    ningún componente válido necesita tantas. Se rechaza por su longitud
+    antes de intentar la conversión."""
+
+    def test_componente_demasiado_largo_no_es_un_numero_valido(self):
+        self.assertIsNone(qr_forense.interpretar_numero_ipv4("9" * 5000))
+
+    def test_host_con_componente_demasiado_largo_no_lanza_excepcion(self):
+        resultado = qr_forense.analizar_url(f"https://{'9' * 5000}/x")
+        self.assertFalse(any(
+            "dirección IP" in h or "IP disfrazada" in h for h in resultado["hallazgos"]
+        ))
+
+
 class TestEsquemaPeligroso(unittest.TestCase):
     """Un esquema como javascript:, data:, vbscript:, file:, blob: o
     intent: no tiene host que analizar, pero sigue siendo contenido de
@@ -586,39 +728,75 @@ class TestPalabrasDeUrgenciaMultilingue(unittest.TestCase):
                 self.assertIn(palabra, _palabras_de_urgencia(hallazgos_de_urgencia[0]))
 
 
-class TestColisionesBenignasDePalabrasCortas(unittest.TestCase):
-    """Las palabras de alerta se buscan como subcadena del host o de la
-    ruta, no como palabra completa (comprobación 8), así que una palabra de
-    cinco letras o menos de PALABRAS_ALERTA_POR_IDIOMA podría coincidir por
-    accidente dentro de una palabra corriente sin relación con avisos de
-    pago. Esta prueba comprueba, para cada una de esas palabras cortas
-    ("trahv" en estonio, "kazna" y "ovrha" en croata, "boete" en
-    neerlandés), una palabra corriente en español que la contiene como
-    subcadena, y que no debe disparar el hallazgo de presión/urgencia. Si
-    alguna de las cuatro coincidiera, habría que quitarla de su lista en vez
-    de debilitar esta prueba — pero ninguna lo hace con la palabra corriente
-    elegida aquí."""
+class TestRaicesChecasCoincidenConFormasFlexionadas(unittest.TestCase):
+    """Las entradas checas "neuhrazen" y "zablokovan" son raíces
+    (comprobación 8), no la forma de diccionario
+    "neuhrazený"/"zablokovaný", precisamente para que coincidan también con
+    sus formas flexionadas (p. ej. "neuhrazena", "zablokovana"), tal y como
+    hace la lista de referencia de la app (urgency_words_eea.dart, bloque
+    "cs")."""
 
-    def _no_genera_el_hallazgo_de_urgencia(self, ruta):
-        resultado = qr_forense.analizar_url(f"https://e.test/{ruta}")
+    def test_neuhrazena_coincide_con_la_raiz(self):
+        resultado = qr_forense.analizar_url("https://e.test/faktura-neuhrazena")
+        hallazgos_de_urgencia = [
+            h for h in resultado["hallazgos"]
+            if h.startswith("Contiene términos asociados a presión/urgencia:")
+        ]
+        self.assertEqual(len(hallazgos_de_urgencia), 1)
+        self.assertIn("neuhrazen", _palabras_de_urgencia(hallazgos_de_urgencia[0]))
+
+    def test_zablokovana_coincide_con_la_raiz(self):
+        resultado = qr_forense.analizar_url("https://e.test/ucet-zablokovana")
+        hallazgos_de_urgencia = [
+            h for h in resultado["hallazgos"]
+            if h.startswith("Contiene términos asociados a presión/urgencia:")
+        ]
+        self.assertEqual(len(hallazgos_de_urgencia), 1)
+        self.assertIn("zablokovan", _palabras_de_urgencia(hallazgos_de_urgencia[0]))
+
+
+class TestPenaliteExcluidaPorColisionComun(unittest.TestCase):
+    """La palabra francesa "pénalité" no está en
+    PALABRAS_ALERTA_POR_IDIOMA["fr"]: es también la palabra corriente para
+    una sanción deportiva (un penalti, una pénalité de rugby), así que una
+    crónica de deporte completamente benigna no debe disparar el hallazgo
+    de presión/urgencia."""
+
+    def test_penalite_en_un_contexto_deportivo_no_genera_el_hallazgo(self):
+        resultado = qr_forense.analizar_url("https://deportes.example.com/futbol/penalite-decisiva-del-arbitro")
         self.assertFalse(any(
             h.startswith("Contiene términos asociados a presión/urgencia:")
             for h in resultado["hallazgos"]
         ))
 
-    def test_trahv_no_coincide_dentro_de_extrahotelero(self):
-        # "extrahotelero" (alojamiento turístico no hotelero) contiene
-        # "trah" pero no "trahv": a la "h" le sigue una "o", no una "v".
-        self._no_genera_el_hallazgo_de_urgencia("alojamiento-extrahotelero")
 
-    def test_kazna_no_coincide_dentro_de_manzana(self):
-        self._no_genera_el_hallazgo_de_urgencia("tarta-de-manzana")
+class TestColisionesBenignasDePalabrasCortas(unittest.TestCase):
+    """Las palabras de alerta se buscan como subcadena del host o de la
+    ruta, no como palabra completa (comprobación 8) — una limitación
+    heredada del propio diseño de upstream, no introducida por esta rama:
+    ya afecta a su lista original sin modificar, p. ej. "multa" es
+    subcadena de la palabra corriente "simultáneamente" (ver README.md,
+    apartado "Límites"). Esta prueba fija ese comportamiento ACTUAL con un
+    ejemplo real (la coincidencia SÍ se produce), en vez de, como antes,
+    comprobar únicamente palabras que no contienen el término y que por
+    tanto no probaban nada sobre colisiones.
+    Para las palabras cortas (cinco letras o menos) añadidas por esta rama
+    ("trahv" en estonio, "kazna" y "ovrha" en croata, "boete" en
+    neerlandés) no se ha encontrado ninguna palabra corriente, en español ni
+    en su propio idioma, que las contenga como subcadena — a diferencia de
+    "pénalité" (ver TestPenaliteExcluidaPorColisionComun), ninguna de las
+    cuatro es además, por sí misma, la palabra habitual de un uso corriente
+    ajeno a los avisos de pago, así que se mantienen en la lista sin una
+    prueba de colisión propia."""
 
-    def test_ovrha_no_coincide_dentro_de_sobrehumano(self):
-        self._no_genera_el_hallazgo_de_urgencia("esfuerzo-sobrehumano")
-
-    def test_boete_no_coincide_dentro_de_poeta(self):
-        self._no_genera_el_hallazgo_de_urgencia("biografia-del-poeta")
+    def test_multa_de_upstream_coincide_dentro_de_simultaneamente(self):
+        resultado = qr_forense.analizar_url("https://e.test/simultaneamente")
+        hallazgos_de_urgencia = [
+            h for h in resultado["hallazgos"]
+            if h.startswith("Contiene términos asociados a presión/urgencia:")
+        ]
+        self.assertEqual(len(hallazgos_de_urgencia), 1)
+        self.assertIn("multa", _palabras_de_urgencia(hallazgos_de_urgencia[0]))
 
 
 class TestDecodificarQrSinOpencv(unittest.TestCase):
