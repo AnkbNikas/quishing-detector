@@ -330,6 +330,21 @@ PALABRAS_ALERTA_POR_IDIOMA = {
         # jurídico de slov-lex.sk, término "daňový nedoplatok").
         "nedoplatok",
     ],
+    # Esloveno. Fuente: Fran, portal de diccionarios eslovenos (fran.si), que
+    # agrupa el SSKJ², el Slovenski pravopis, el diccionario de Pleteršnik y
+    # los diccionarios de terminología jurídica y tributaria, junto con el
+    # Terminološki slovar prava, consultados el 2026-09-24. Solo "izvršba"
+    # lleva diacrítico en su grafía habitual.
+    "sl": [
+        # izterjava: cobro o recuperación forzosa de una deuda, incluida la
+        # vía forzosa ("prisilna izterjava") (fran.si, entrada "izterjava").
+        "izterjava",
+        # izvršba: ejecución forzosa de una resolución judicial o
+        # administrativa, incluida la ejecución tributaria ("davčna
+        # izvršba") (fran.si, entrada "izvršba", y Terminološki slovar
+        # prava).
+        "izvršba",
+    ],
 }
 
 MARCAS_HABITUALMENTE_SUPLANTADAS = {
