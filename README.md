@@ -33,7 +33,7 @@ $ python3 qr_forense.py pegatina_parquimetro.jpg
 Hallazgos:
 - El dominio menciona 'dgt' pero no coincide con ningún dominio oficial
   conocido (dgt.es, sede.dgt.gob.es). Posible suplantación de marca.
-- Contiene términos asociados a presión/urgencia: tasa, pago, multa.
+- Contiene términos asociados a presión/urgencia: pago, multa, tasa.
 ```
 
 ## Instalación
@@ -57,19 +57,78 @@ python3 qr_forense.py foto_qr.jpg --whois
 ## Qué comprueba
 
 - 🔗 Truco del símbolo `@` en la URL
-- 🌐 IP en lugar de dominio
-- 🔤 Punycode / posibles ataques homógrafo
+- 🔑 Credenciales (`usuario:contraseña@`) en texto plano en la propia URL — independiente del truco del `@` y se suma a él
+- ↩️ `\` antes del host en vez de `/` (p. ej. `evil.top\@dgt.es`), el mismo truco que el del `@` pero a través de cómo lo corrigen los navegadores
+- 🌐 IP en lugar de dominio, incluida una IP disfrazada en decimal, hexadecimal, octal, en una forma abreviada o mixta (p. ej. `127.1`, `0x7f.1`) o como literal IPv6 — con el mismo analizador de la especificación WHATWG URL que usaría un navegador
+- 🔤 Punycode / posibles ataques homógrafo, incluyendo homógrafos en Unicode (cirílico, ancho completo...) una vez convertidos a su forma Punycode
 - ✂️ Acortadores de enlaces
 - 🏳️ TLDs de bajo coste habitualmente usados en phishing (.tk, .top, .xyz...)
 - 🏦 Suplantación de marcas habituales (DGT, Correos, bancos, mensajería...) — lista ampliable en el propio script
 - 🕓 Antigüedad del dominio vía WHOIS (opcional, requiere internet)
-- ⚠️ Términos de presión/urgencia en la URL
+- ⚠️ Términos de presión/urgencia en la URL (en español y, de momento, en checo, danés, alemán, estonio, finés, francés, croata, húngaro, italiano, lituano, neerlandés, noruego, polaco, portugués, rumano, eslovaco, esloveno y sueco), incluso si están ocultos tras un escape porcentual en la ruta o escritos sin sus diacríticos
+- 💣 Esquemas peligrosos (`javascript:`, `data:`, `vbscript:`, `file:`, `blob:`, `intent:`) que ejecutan código o cargan contenido arbitrario — riesgo ALTO directo
+- 🔓 `http://` sin cifrar, cuando el contenido original ya traía ese esquema en cualquiera de sus formas aceptadas por un navegador (`http://`, `http:/`, `http:evil.top`...) — no se puntúa si lo añade el propio script, ni si el destino ya es una IP
+
+## Normalización de la URL antes de analizarla
+
+Antes de aplicar las comprobaciones anteriores, la URL se normaliza igual
+que lo haría un navegador, para que un disfraz en la propia URL no engañe
+al análisis:
+
+- se recortan los espacios en blanco del contenido decodificado del QR;
+- si `urlsplit()` rechaza la URL con un `ValueError` (p. ej. por el plegado
+  NFKC que la librería estándar aplica al netloc para detectar un carácter
+  Unicode que se pliegue a un delimitador sin serlo literalmente, como el
+  signo de número de ancho completo `＃` en `https://dgt.es＃@evil.top/`; o
+  por un literal IPv6 sin cerrar), se reconstruye la autoridad igual que lo
+  haría un navegador: el host es todo lo posterior al último `@` literal,
+  antes del primer `/`, `?` o `#` literal, y si ese host está en Unicode se
+  convierte a Punycode igual que en la rama normal, en vez de rechazarse.
+  Solo si ni siquiera esa lectura es posible se trata como "URL malformada",
+  y con +3, no con 0 — un enlace que no se puede analizar nunca debe
+  parecer de riesgo BAJO. Un host vacío (`https://` sin nada detrás), o que
+  solo decodifica a un carácter que ningún navegador acepta en un host
+  (p. ej. `%2f` → `/`), se puntúa igual, por la misma razón: sigue siendo un
+  enlace activo que no lleva a ningún destino real, no solo un fallo de
+  análisis;
+- para `http:` o `https:`, cualquier secuencia de cero o más `/` y `\` justo
+  después del esquema (p. ej. `http:evil.top/login`, sin ninguna barra;
+  `https:/evil.top/`; `https:///evil.top/`; o la mezcla
+  `https:/\evil.top/`) se trata como inicio de la autoridad, tal y como
+  hace un navegador con `//`;
+- un `\` antes del host se trata como `/`, tal y como hacen los
+  navegadores, y además genera el hallazgo anterior;
+- el host se decodifica si contiene secuencias de escape porcentual
+  (`%70aypal.evil.com` → `paypal.evil.com`);
+- un único punto final en el host (`bit.ly.`) se analiza como si no
+  estuviera;
+- un host en Unicode se convierte a su forma Punycode con el códec `idna`
+  de la librería estándar (IDNA 2003). Los navegadores actuales usan UTS
+  #46 no transicional, que difiere de IDNA 2003 en casos como `straße.de`
+  (IDNA 2003 la convierte a `strasse.de`; UTS #46 no transicional la deja
+  en `straße.de` codificada en Punycode). No se ha añadido una dependencia
+  nueva para evitar esa diferencia. La comprobación de términos de
+  presión/urgencia sigue buscando sobre el host en Unicode, de antes de
+  esta conversión, para no perder una palabra con diacrítico que ya no
+  existe como tal una vez convertida a Punycode.
+
+## Tests
+
+Pruebas unitarias con `unittest` (librería estándar, sin dependencias nuevas). Fijan la puntuación y los hallazgos de los cinco casos de `ejemplos/` y los umbrales de `clasificar_riesgo`:
+
+```bash
+python3 -m unittest discover -s tests
+```
+
+No hace falta tener OpenCV instalado para ejecutarlas — `decodificar_qr` solo importa `cv2` al decodificar una imagen real.
 
 ## ⚖️ Límites — lectura obligatoria
 
 - Es un análisis **heurístico y estructural**, no consulta listas negras de phishing en tiempo real ni analiza el contenido real de la web de destino.
 - Puntuación baja **no** garantiza que el enlace sea seguro. Puntuación alta **no** es prueba definitiva de phishing — son señales de alerta, no un veredicto.
 - La lista de marcas suplantadas es orientativa y ampliable; no cubre todas las posibles víctimas de suplantación.
+- Los términos de presión/urgencia se buscan como subcadena del host o de la ruta, no como palabra completa — una limitación heredada del propio diseño de upstream, no de los idiomas añadidos: por ejemplo, `multa` (de la lista original, sin modificar) es subcadena de la palabra corriente «simultáneamente». No se ha cambiado a una coincidencia por palabra completa para no alterar la puntuación de los ejemplos de referencia.
+- La normalización de la URL sigue las reglas de los navegadores (especificación WHATWG URL) para las formas habituales cubiertas por los tests, no la implementación completa de la especificación.
 
 ## Licencia
 
